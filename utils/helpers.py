@@ -124,47 +124,37 @@ def sanitize_html(text: str) -> str:
 
 def validate_question(question: str) -> bool:
     """
-    Validate a user question
+    Validate if a question is acceptable for processing
     
     Args:
-        question: Question text to validate
+        question: The question to validate
         
     Returns:
-        True if valid, False otherwise
+        True if question is valid, False otherwise
     """
-    if not question or not isinstance(question, str):
+    if not question or not question.strip():
         return False
     
-    # Clean the question
-    clean_question = question.strip()
-    
-    # Check minimum length
-    if len(clean_question) < 5:
+    # Remove excessive length restriction and allow conversational inputs
+    if len(question.strip()) > 5000:  # Very generous limit
         return False
     
-    # Check maximum length
-    if len(clean_question) > 5000:
-        return False
-    
-    # Check for obviously malicious content
-    suspicious_patterns = [
-        r'<script[^>]*>.*?</script>',
-        r'javascript:',
-        r'data:text/html',
-        r'vbscript:',
-        r'onload\s*=',
-        r'onclick\s*=',
-        r'onerror\s*=',
+    # Allow almost all characters and patterns - be very permissive for conversational AI
+    # Only block obvious spam or malicious patterns
+    blocked_patterns = [
+        r'(.)\1{20,}',  # Repeated character spam (20+ times)
+        r'[<>]{5,}',    # HTML/XML injection attempts
+        r'script\s*:',  # Script injection
+        r'javascript\s*:',  # JavaScript injection
     ]
     
-    for pattern in suspicious_patterns:
-        if re.search(pattern, clean_question, re.IGNORECASE):
+    question_lower = question.lower().strip()
+    
+    for pattern in blocked_patterns:
+        if re.search(pattern, question_lower, re.IGNORECASE):
             return False
     
-    # Check for excessive repetition
-    if len(set(clean_question.lower().split())) < len(clean_question.split()) * 0.3:
-        return False
-    
+    # Accept everything else including simple greetings like "hi", "hello", etc.
     return True
 
 def validate_url(url: str) -> bool:
