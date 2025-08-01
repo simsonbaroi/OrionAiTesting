@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Hero Section -->
+    <div class="row text-center mb-5">
+        <div class="col-lg-8 mx-auto">
+            <h1 class="display-4 fw-bold mb-3">
+                <i data-feather="cpu" class="me-3"></i>
+                PyLearnAI
+            </h1>
+            <p class="lead mb-4">
+                A self-learning Python expert AI that continuously improves by scraping web data and user interactions.
+                Get instant, accurate answers to your Python programming questions.
+            </p>
+            <div class="d-flex gap-3 justify-content-center">
+                <a href="{{ url_for('chat') }}" class="btn btn-primary btn-lg">
+                    <i data-feather="message-circle" class="me-2"></i>
+                    Start Chatting
+                </a>
+                <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary btn-lg">
+                    <i data-feather="settings" class="me-2"></i>
+                    Admin Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-5">
+        <div class="col-md-4 mb-3">
+            <div class="card bg-primary">
+                <div class="card-body text-center">
+                    <i data-feather="database" class="mb-3" style="width: 48px; height: 48px;"></i>
+                    <h2 class="card-title">{{ total_knowledge | default(0) }}</h2>
+                    <p class="card-text">Knowledge Base Items</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card bg-success">
+                <div class="card-body text-center">
+                    <i data-feather="help-circle" class="mb-3" style="width: 48px; height: 48px;"></i>
+                    <h2 class="card-title">{{ total_queries | default(0) }}</h2>
+                    <p class="card-text">Questions Answered</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card bg-info">
+                <div class="card-body text-center">
+                    <i data-feather="trending-up" class="mb-3" style="width: 48px; height: 48px;"></i>
+                    <h2 class="card-title">24/7</h2>
+                    <p class="card-text">Continuous Learning</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="text-center mb-4">Key Features</h2>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i data-feather="zap" class="mb-3 text-primary" style="width: 48px; height: 48px;"></i>
+                    <h5 class="card-title">Instant Responses</h5>
+                    <p class="card-text">Get immediate answers to your Python questions with AI-powered responses.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i data-feather="refresh-cw" class="mb-3 text-success" style="width: 48px; height: 48px;"></i>
+                    <h5 class="card-title">Self-Learning</h5>
+                    <p class="card-text">Continuously improves by learning from Python documentation, Stack Overflow, and GitHub.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i data-feather="code" class="mb-3 text-info" style="width: 48px; height: 48px;"></i>
+                    <h5 class="card-title">Code Examples</h5>
+                    <p class="card-text">Provides practical code examples and explanations for better understanding.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i data-feather="activity" class="mb-3 text-warning" style="width: 48px; height: 48px;"></i>
+                    <h5 class="card-title">Performance Tracking</h5>
+                    <p class="card-text">Monitors and evaluates its own performance to ensure quality responses.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    {% if recent_queries %}
+    <div class="row">
+        <div class="col-12">
+            <h3 class="mb-4">Recent Questions</h3>
+            <div class="card">
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for query in recent_queries %}
+                        <div class="list-group-item bg-transparent">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ query.question[:100] }}{% if query.question|length > 100 %}...{% endif %}</h6>
+                                <small class="text-muted">{{ query.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                            </div>
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    Response time: {{ "%.2f"|format(query.response_time or 0) }}s
+                                </small>
+                                {% if query.user_rating %}
+                                <div class="rating">
+                                    {% for i in range(1, 6) %}
+                                        {% if i <= query.user_rating %}
+                                            <i data-feather="star" class="text-warning" style="width: 16px; height: 16px; fill: currentColor;"></i>
+                                        {% else %}
+                                            <i data-feather="star" class="text-muted" style="width: 16px; height: 16px;"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Start Guide -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <h3 class="mb-4">Quick Start Guide</h3>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="badge bg-primary rounded-circle p-2 me-3">1</div>
+                        <h5 class="mb-0">Ask a Question</h5>
+                    </div>
+                    <p class="card-text">Navigate to the chat interface and ask any Python-related question. Be specific for better results.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="badge bg-success rounded-circle p-2 me-3">2</div>
+                        <h5 class="mb-0">Get AI Response</h5>
+                    </div>
+                    <p class="card-text">Receive detailed explanations, code examples, and best practices powered by advanced AI models.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="badge bg-info rounded-circle p-2 me-3">3</div>
+                        <h5 class="mb-0">Rate & Improve</h5>
+                    </div>
+                    <p class="card-text">Rate the responses to help the AI learn and improve. Your feedback makes the system better.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Example Questions -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <h3 class="mb-4">Example Questions</h3>
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i data-feather="chevron-right" class="me-2 text-primary"></i>
+                                    How do I create a list in Python?
+                                </li>
+                                <li class="mb-2">
+                                    <i data-feather="chevron-right" class="me-2 text-primary"></i>
+                                    What are Python decorators?
+                                </li>
+                                <li class="mb-2">
+                                    <i data-feather="chevron-right" class="me-2 text-primary"></i>
+                                    How to handle exceptions in Python?
+                                </li>
+                                <li class="mb-2">
+                                    <i data-feather="chevron-right" class="me-2 text-primary"></i>
+                                    What's the difference between lists and tuples?
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i data-feather="chevron-right" class="me-2 text-primary"></i>
+                                    How to read files in Python?
+                                </li>
+                                <li class="mb-2">
+                                    <i data-feather="chevron-right" class="me-2 text-primary"></i>
+                                    What are lambda functions?
+                                </li>
+                                <li class="mb-2">
+                                    <i data-feather="chevron-right" class="me-2 text-primary"></i>
+                                    How to use virtual environments?
+                                </li>
+                                <li class="mb-2">
+                                    <i data-feather="chevron-right" class="me-2 text-primary"></i>
+                                    What is list comprehension?
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Add click handlers for example questions
+    document.addEventListener('DOMContentLoaded', function() {
+        const exampleQuestions = document.querySelectorAll('.list-unstyled li');
+        exampleQuestions.forEach(li => {
+            li.style.cursor = 'pointer';
+            li.addEventListener('click', function() {
+                const questionText = this.textContent.trim();
+                // Store the question in sessionStorage and redirect to chat
+                sessionStorage.setItem('prefillQuestion', questionText);
+                window.location.href = "{{ url_for('chat') }}";
+            });
+        });
+    });
+</script>
+{% endblock %}
