@@ -360,11 +360,17 @@ function removeLoadingMessage(container) {
 async function generateAIResponse(question) {
     const lowerQuestion = question.toLowerCase();
     
+    // Debug logging
+    console.log('Generating AI response for:', question);
+    console.log('Processing with enhanced system...');
+    
     try {
         // First, try to find relevant content from the knowledge base
         const knowledgeSnapshot = await database.ref('knowledgeBase').once('value');
         const knowledgeData = knowledgeSnapshot.val() || {};
         const knowledgeItems = Object.values(knowledgeData);
+        
+        console.log('Knowledge base items found:', knowledgeItems.length);
         
         // Search for relevant knowledge base items
         const relevantItems = knowledgeItems.filter(item => {
@@ -378,6 +384,8 @@ async function generateAIResponse(question) {
             );
         });
         
+        console.log('Relevant items found:', relevantItems.length);
+        
         // If we found relevant items, use them to generate a response
         if (relevantItems.length > 0) {
             // Sort by quality score and recency
@@ -388,14 +396,17 @@ async function generateAIResponse(question) {
             });
             
             const bestMatch = relevantItems[0];
+            console.log('Using knowledge base response for:', bestMatch.title);
             return formatKnowledgeResponse(bestMatch, question);
         }
         
-        // If no specific match, try to answer based on question patterns
+        // If no specific match, use enhanced pattern response
+        console.log('Using enhanced pattern response');
         return generatePatternResponse(lowerQuestion);
         
     } catch (error) {
         console.error('Error accessing knowledge base:', error);
+        console.log('Fallback to pattern response due to error');
         return generatePatternResponse(lowerQuestion);
     }
 }
