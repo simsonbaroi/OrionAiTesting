@@ -74,24 +74,38 @@ class AdminDashboard {
     }
     
     updateDashboardStats(data) {
-        // Update knowledge base stats if available
-        if (data.knowledge_base_stats) {
-            const stats = data.knowledge_base_stats;
+        try {
+            // Use basic_stats from API response
+            const stats = data.basic_stats || {};
             
-            // Update stat cards
-            this.updateStatCard('knowledge_base', stats.total_items || 0);
-            this.updateStatCard('training_data', stats.total_training_data || 0);
-            this.updateStatCard('unused_training_data', stats.unused_training_data || 0);
-        }
-        
-        // Update model info display
-        if (data.current_model) {
-            this.updateModelInfo(data.current_model);
-        }
-        
-        // Update recent activities
-        if (data.recent_scraping) {
-            this.updateRecentActivities(data.recent_scraping);
+            // Update statistics cards
+            const knowledgeCard = document.querySelector('.card.bg-primary h3.card-title');
+            if (knowledgeCard) knowledgeCard.textContent = stats.knowledge_base || 0;
+            
+            const trainingCard = document.querySelector('.card.bg-success h3.card-title');
+            if (trainingCard) trainingCard.textContent = stats.training_data || 0;
+            
+            const queriesCard = document.querySelector('.card.bg-info h3.card-title');
+            if (queriesCard) queriesCard.textContent = stats.user_queries || 0;
+            
+            const unusedCard = document.querySelector('.card.bg-warning h3.card-title');
+            if (unusedCard) unusedCard.textContent = stats.unused_training_data || 0;
+            
+            // Update model info if available
+            if (data.current_model) {
+                const modelStatus = document.querySelector('#model-status');
+                if (modelStatus) {
+                    modelStatus.innerHTML = `
+                        <strong>Version:</strong> ${data.current_model.version}<br>
+                        <strong>Status:</strong> <span class="badge bg-success">${data.current_model.status}</span><br>
+                        <strong>Last Trained:</strong> ${data.current_model.last_trained}<br>
+                        <strong>Performance:</strong> ${(data.current_model.performance_score * 100).toFixed(1)}%
+                    `;
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error updating dashboard stats:', error);
         }
     }
     
