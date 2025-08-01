@@ -5,6 +5,14 @@ from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
+# Firebase integration
+try:
+    from external_integrations.firebase_connector import get_firebase_connector
+    FIREBASE_AVAILABLE = True
+except ImportError:
+    FIREBASE_AVAILABLE = False
+    logger.warning("Firebase connector not available")
+
 class SimplePythonExpert:
     """
     A multi-language expert that provides responses and generates applications.
@@ -16,6 +24,16 @@ class SimplePythonExpert:
         self.version = "2.0.0"
         self.responses_db = self._init_response_database()
         self.app_templates = self._init_app_templates()
+        
+        # Initialize Firebase connector if available
+        self.firebase = None
+        if FIREBASE_AVAILABLE:
+            try:
+                self.firebase = get_firebase_connector()
+                logger.info("Firebase integration enabled")
+            except Exception as e:
+                logger.warning(f"Firebase initialization failed: {str(e)}")
+        
         logger.info("Multi-Language Expert initialized successfully")
     
     def _init_response_database(self) -> Dict[str, str]:
@@ -103,6 +121,8 @@ class SimplePythonExpert:
                 if detected_type:
                     app_result = self.generate_app(detected_type)
                     if app_result['success']:
+                        # Log app generation to Firebase
+                        self._log_app_generation(app_result, detected_type)
                         return self._format_app_response(app_result)
                     else:
                         return app_result['message']
@@ -127,6 +147,19 @@ class SimplePythonExpert:
                     best_match = self._get_debugging_help()
                 else:
                     best_match = self._get_default_response(question)
+            
+            # Store interaction in Firebase if available
+            if self.firebase:
+                try:
+                    interaction_data = {
+                        'question': question,
+                        'response_type': 'app_generation' if any(keyword in question.lower() for keyword in ['create', 'make', 'build', 'generate']) else 'q_and_a',
+                        'model_version': self.version,
+                        'response_length': len(best_match)
+                    }
+                    self.firebase.store_user_interaction(interaction_data)
+                except Exception as e:
+                    logger.warning(f"Failed to store interaction in Firebase: {str(e)}")
             
             return best_match
             
@@ -226,6 +259,21 @@ What specific error are you encountering?"""
                 'success': False,
                 'message': f"Error generating app: {str(e)}"
             }
+    
+    def _log_app_generation(self, app_result: Dict[str, Any], app_type: str):
+        """Log app generation to Firebase if available"""
+        if self.firebase and app_result.get('success'):
+            try:
+                app_data = {
+                    'app_type': app_type,
+                    'app_name': app_result.get('name', 'Unknown'),
+                    'technologies': app_result.get('technologies', []),
+                    'file_count': len(app_result.get('files', {})),
+                    'model_version': self.version
+                }
+                self.firebase.store_generated_app(app_data)
+            except Exception as e:
+                logger.warning(f"Failed to log app generation to Firebase: {str(e)}")
     
     def _generate_todo_app(self, name: str) -> Dict[str, Any]:
         """Generate a complete todo list application"""

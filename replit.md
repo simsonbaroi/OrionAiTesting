@@ -11,6 +11,7 @@ The application scrapes content from Python documentation, GitHub repositories, 
 Preferred communication style: Simple, everyday language.
 Programming languages to support: HTML, CSS, JavaScript, React, Python
 Application generation: System should be able to create complete apps in these languages when requested.
+Firebase integration: Use https://myaisystem-16411-default-rtdb.firebaseio.com/ for external data storage and learning enhancement.
 
 ## System Architecture
 
