@@ -16,6 +16,7 @@ Firebase integration: Use https://myaisystem-16411-default-rtdb.firebaseio.com/ 
 ## Recent Changes (2025-08-01)
 
 - **Replit Migration Complete**: Successfully migrated from Replit Agent to native Replit environment
+- **Database Schema Fixed**: Added missing fields (used_for_training, user_rating, started_at) to database models
 - **PostgreSQL Integration**: Configured secure PostgreSQL database with proper environment variables
 - **Multi-Model AI System**: Integrated both OpenAI GPT-4o and DeepSeek APIs for enhanced programming assistance
 - **Intelligent Model Selection**: Automatic model selection based on task type, language, and performance analytics

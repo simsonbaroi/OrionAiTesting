@@ -7,7 +7,7 @@ from ai_models.model_manager import ModelManager
 from learning.trainer import ModelTrainer
 from learning.evaluator import ModelEvaluator
 from data_processing.processor import DataProcessor
-from models import UserQuery, KnowledgeBase, TrainingData, ModelMetrics
+from models import UserQuery, KnowledgeBase, TrainingData, ModelMetrics, ScrapingLog
 from app import db
 from scheduler.tasks import trigger_immediate_data_collection, trigger_immediate_training, get_scheduler_status
 from utils.helpers import format_datetime, sanitize_input, validate_question
@@ -65,9 +65,16 @@ def init_routes(app):
             # Load AI model and generate response
             start_time = time.time()
             ai_model = PythonExpertAI()
-            response = ai_model.generate_response(question)
+            ai_response = ai_model.generate_response(question)
             end_time = time.time()
-            model_response_time = end_time - start_time
+            
+            # Handle tuple response (response, confidence) or string response
+            if isinstance(ai_response, tuple):
+                response = ai_response[0]
+                confidence = ai_response[1] if len(ai_response) > 1 else 0.0
+            else:
+                response = str(ai_response)
+                confidence = 0.0
             
             total_response_time = end_time - start_time
             

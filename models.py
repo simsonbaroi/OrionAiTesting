@@ -43,6 +43,7 @@ class TrainingData(db.Model):
     success_rate = Column(Float, default=0.0)  # How often this leads to good responses
     created_at = Column(DateTime, default=datetime.utcnow)
     is_validated = Column(Boolean, default=False)
+    used_for_training = Column(Boolean, default=False)
     
     # Relationships
     knowledge_item = relationship("KnowledgeBase", back_populates="training_pairs")
@@ -62,6 +63,7 @@ class UserQuery(db.Model):
     knowledge_base_id = Column(Integer, ForeignKey('knowledge_base.id'), nullable=True)
     answer_source = Column(String(100))  # knowledge_base, pattern_match, ai_generated
     context = Column(JSON)  # Store conversation context
+    user_rating = Column(Integer)  # 1-5 rating from user
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -186,5 +188,20 @@ class ScrapingLog(db.Model):
     items_collected = Column(Integer, default=0)
     error_message = Column(Text)
     execution_time = Column(Float)  # Time taken in seconds
+    started_at = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
     scraping_metadata = Column(JSON)  # Additional scraping metadata
+    
+    def to_dict(self):
+        """Convert scraping log to dictionary"""
+        return {
+            'id': self.id,
+            'source': self.source,
+            'url': self.url,
+            'status': self.status,
+            'items_collected': self.items_collected,
+            'error_message': self.error_message,
+            'execution_time': self.execution_time,
+            'started_at': self.started_at.isoformat() if self.started_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
