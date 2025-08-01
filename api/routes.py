@@ -363,3 +363,76 @@ def init_routes(app):
         logger.error(f"Internal server error: {str(error)}")
         db.session.rollback()
         return render_template('index.html'), 500
+    
+    @app.route('/database')
+    def database_browser():
+        """Database browser page"""
+        try:
+            # Get all tables with counts
+            tables_info = {
+                'knowledge_base': {
+                    'count': KnowledgeBase.query.count(),
+                    'recent': KnowledgeBase.query.order_by(KnowledgeBase.created_at.desc()).limit(10).all()
+                },
+                'training_data': {
+                    'count': TrainingData.query.count(),
+                    'recent': TrainingData.query.order_by(TrainingData.created_at.desc()).limit(10).all()
+                },
+                'user_queries': {
+                    'count': UserQueries.query.count(),
+                    'recent': UserQueries.query.order_by(UserQueries.created_at.desc()).limit(10).all()
+                },
+                'model_metrics': {
+                    'count': ModelMetrics.query.count(),
+                    'recent': ModelMetrics.query.order_by(ModelMetrics.evaluation_date.desc()).limit(10).all()
+                }
+            }
+            
+            return render_template('database.html', tables_info=tables_info)
+            
+        except Exception as e:
+            logger.error(f"Error loading database browser: {str(e)}")
+            flash('Error loading database browser', 'error')
+            return redirect(url_for('index'))
+    
+    @app.route('/api/table/<table_name>')
+    def api_table_data(table_name):
+        """API endpoint to get table data"""
+        try:
+            page = request.args.get('page', 1, type=int)
+            per_page = request.args.get('per_page', 20, type=int)
+            
+            if table_name == 'knowledge_base':
+                query = KnowledgeBase.query
+                paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+                data = [item.to_dict() for item in paginated.items]
+            elif table_name == 'training_data':
+                query = TrainingData.query
+                paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+                data = [item.to_dict() for item in paginated.items]
+            elif table_name == 'user_queries':
+                query = UserQueries.query
+                paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+                data = [item.to_dict() for item in paginated.items]
+            elif table_name == 'model_metrics':
+                query = ModelMetrics.query
+                paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+                data = [item.to_dict() for item in paginated.items]
+            else:
+                return jsonify({'error': 'Table not found'}), 404
+            
+            return jsonify({
+                'data': data,
+                'pagination': {
+                    'page': paginated.page,
+                    'pages': paginated.pages,
+                    'per_page': paginated.per_page,
+                    'total': paginated.total,
+                    'has_next': paginated.has_next,
+                    'has_prev': paginated.has_prev
+                }
+            })
+            
+        except Exception as e:
+            logger.error(f"Error getting table data: {str(e)}")
+            return jsonify({'error': 'Internal server error'}), 500

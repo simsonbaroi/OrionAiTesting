@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block title %}Database Browser - PyLearnAI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i data-feather="database"></i>
+                    Database Browser
+                </h1>
+                <div>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary me-2">
+                        <i data-feather="home" class="me-1"></i>
+                        Home
+                    </a>
+                    <a href="{{ url_for('admin') }}" class="btn btn-outline-primary">
+                        <i data-feather="settings" class="me-1"></i>
+                        Admin
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Overview Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <i data-feather="book-open" class="mb-2" style="width: 32px; height: 32px;"></i>
+                    <h4>{{ tables_info.knowledge_base.count }}</h4>
+                    <p class="mb-0">Knowledge Base</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i data-feather="layers" class="mb-2" style="width: 32px; height: 32px;"></i>
+                    <h4>{{ tables_info.training_data.count }}</h4>
+                    <p class="mb-0">Training Data</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <i data-feather="message-square" class="mb-2" style="width: 32px; height: 32px;"></i>
+                    <h4>{{ tables_info.user_queries.count }}</h4>
+                    <p class="mb-0">User Queries</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <i data-feather="bar-chart-2" class="mb-2" style="width: 32px; height: 32px;"></i>
+                    <h4>{{ tables_info.model_metrics.count }}</h4>
+                    <p class="mb-0">Model Metrics</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tables Navigation -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <nav>
+                <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                    <button class="nav-link active" id="nav-knowledge-tab" data-bs-toggle="tab" data-bs-target="#nav-knowledge" type="button" role="tab">
+                        <i data-feather="book-open" class="me-1"></i>
+                        Knowledge Base
+                    </button>
+                    <button class="nav-link" id="nav-training-tab" data-bs-toggle="tab" data-bs-target="#nav-training" type="button" role="tab">
+                        <i data-feather="layers" class="me-1"></i>
+                        Training Data
+                    </button>
+                    <button class="nav-link" id="nav-queries-tab" data-bs-toggle="tab" data-bs-target="#nav-queries" type="button" role="tab">
+                        <i data-feather="message-square" class="me-1"></i>
+                        User Queries
+                    </button>
+                    <button class="nav-link" id="nav-metrics-tab" data-bs-toggle="tab" data-bs-target="#nav-metrics" type="button" role="tab">
+                        <i data-feather="bar-chart-2" class="me-1"></i>
+                        Model Metrics
+                    </button>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="nav-tabContent">
+        <!-- Knowledge Base Tab -->
+        <div class="tab-pane fade show active" id="nav-knowledge" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Knowledge Base Records</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Title</th>
+                                    <th>Source Type</th>
+                                    <th>Quality Score</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in tables_info.knowledge_base.recent %}
+                                <tr>
+                                    <td>{{ item.id }}</td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 300px;" title="{{ item.title }}">
+                                            {{ item.title }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ item.source_type }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if item.quality_score > 0.8 %}success{% elif item.quality_score > 0.5 %}warning{% else %}danger{% endif %}">
+                                            {{ "%.2f"|format(item.quality_score) }}
+                                        </span>
+                                    </td>
+                                    <td>{{ item.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No knowledge base records found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Training Data Tab -->
+        <div class="tab-pane fade" id="nav-training" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Training Data Records</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Question</th>
+                                    <th>Source</th>
+                                    <th>Quality Score</th>
+                                    <th>Used for Training</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in tables_info.training_data.recent %}
+                                <tr>
+                                    <td>{{ item.id }}</td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 300px;" title="{{ item.question }}">
+                                            {{ item.question }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ item.source }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if item.quality_score > 0.8 %}success{% elif item.quality_score > 0.5 %}warning{% else %}danger{% endif %}">
+                                            {{ "%.2f"|format(item.quality_score) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if item.used_for_training %}
+                                            <i data-feather="check-circle" class="text-success"></i>
+                                        {% else %}
+                                            <i data-feather="circle" class="text-muted"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No training data records found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Queries Tab -->
+        <div class="tab-pane fade" id="nav-queries" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">User Query Records</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Question</th>
+                                    <th>Response Time</th>
+                                    <th>User Rating</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in tables_info.user_queries.recent %}
+                                <tr>
+                                    <td>{{ item.id }}</td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 300px;" title="{{ item.question }}">
+                                            {{ item.question }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if item.response_time %}
+                                            <span class="badge bg-{% if item.response_time < 2 %}success{% elif item.response_time < 5 %}warning{% else %}danger{% endif %}">
+                                                {{ "%.2f"|format(item.response_time) }}s
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.user_rating %}
+                                            <div class="text-warning">
+                                                {% for i in range(item.user_rating) %}★{% endfor %}
+                                                {% for i in range(5 - item.user_rating) %}☆{% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">Not rated</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No user query records found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Metrics Tab -->
+        <div class="tab-pane fade" id="nav-metrics" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Model Metrics Records</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Model Version</th>
+                                    <th>Accuracy Score</th>
+                                    <th>Loss</th>
+                                    <th>Training Samples</th>
+                                    <th>Evaluation Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in tables_info.model_metrics.recent %}
+                                <tr>
+                                    <td>{{ item.id }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ item.model_version }}</span>
+                                    </td>
+                                    <td>
+                                        {% if item.accuracy_score %}
+                                            <span class="badge bg-{% if item.accuracy_score > 0.8 %}success{% elif item.accuracy_score > 0.6 %}warning{% else %}danger{% endif %}">
+                                                {{ "%.3f"|format(item.accuracy_score) }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.loss %}
+                                            <span class="badge bg-{% if item.loss < 0.5 %}success{% elif item.loss < 1.0 %}warning{% else %}danger{% endif %}">
+                                                {{ "%.3f"|format(item.loss) }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.training_samples %}
+                                            <span class="badge bg-info">{{ item.training_samples }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.evaluation_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No model metrics records found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

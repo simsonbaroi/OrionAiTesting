@@ -13,10 +13,14 @@
                 A self-learning Python expert AI that continuously improves by scraping web data and user interactions.
                 Get instant, accurate answers to your Python programming questions.
             </p>
-            <div class="d-flex gap-3 justify-content-center">
+            <div class="d-flex gap-3 justify-content-center flex-wrap">
                 <a href="{{ url_for('chat') }}" class="btn btn-primary btn-lg">
                     <i data-feather="message-circle" class="me-2"></i>
                     Start Chatting
+                </a>
+                <a href="{{ url_for('database_browser') }}" class="btn btn-success btn-lg">
+                    <i data-feather="database" class="me-2"></i>
+                    View Database
                 </a>
                 <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary btn-lg">
                     <i data-feather="settings" class="me-2"></i>
