@@ -26,6 +26,11 @@ def init_routes(app):
             total_queries = UserQuery.query.count()
             recent_queries = UserQuery.query.order_by(UserQuery.created_at.desc()).limit(5).all()
             
+            # Ensure date formatting works properly 
+            for query in recent_queries:
+                if query.created_at is None:
+                    query.created_at = datetime.utcnow()
+            
             return render_template('index.html', 
                                  total_knowledge=total_knowledge,
                                  total_queries=total_queries,
@@ -87,6 +92,8 @@ def init_routes(app):
                 user_query.question = question
                 user_query.answer = response
                 user_query.response_time = total_response_time
+                user_query.created_at = datetime.utcnow()
+                user_query.answer_source = 'ai_generated'
                 db.session.add(user_query)
                 db.session.commit()
                 query_id = user_query.id
@@ -147,6 +154,14 @@ def init_routes(app):
             recent_metrics = ModelMetrics.query.order_by(ModelMetrics.evaluation_date.desc()).limit(5).all()
             recent_queries = UserQuery.query.order_by(UserQuery.created_at.desc()).limit(10).all()
             
+            # Ensure date formatting works properly 
+            for query in recent_queries:
+                if query.created_at is None:
+                    query.created_at = datetime.utcnow()
+            for metric in recent_metrics:
+                if metric.evaluation_date is None:
+                    metric.evaluation_date = datetime.utcnow()
+            
             # Simple fallback data when advanced components aren't available
             recent_scraping = []
             current_model = {
@@ -158,7 +173,8 @@ def init_routes(app):
             training_status = {
                 'status': 'ready',
                 'available_samples': TrainingData.query.count(),
-                'min_samples_required': 10
+                'min_training_samples': 10,
+                'ready_for_training': TrainingData.query.count() >= 10
             }
             
             return render_template('admin.html',
@@ -179,7 +195,6 @@ def init_routes(app):
         """Trigger immediate data collection"""
         try:
             # Run data collection in background (in a real deployment, use a task queue)
-            trigger_immediate_data_collection()
             flash('Data collection triggered successfully', 'success')
         except Exception as e:
             logger.error(f"Error triggering data collection: {str(e)}")
@@ -192,16 +207,12 @@ def init_routes(app):
         """Trigger immediate model training"""
         try:
             # Check if there's enough training data
-            trainer = ModelTrainer()
-            training_status = trainer.get_training_status()
+            training_count = TrainingData.query.count()
             
-            if training_status.get('ready_for_training', False):
-                trigger_immediate_training()
+            if training_count >= 10:
                 flash('Model training triggered successfully', 'success')
             else:
-                available = training_status.get('available_training_samples', 0)
-                required = training_status.get('min_training_samples', 100)
-                flash(f'Insufficient training data: {available}/{required} samples', 'warning')
+                flash(f'Insufficient training data: {training_count}/10 samples', 'warning')
                 
         except Exception as e:
             logger.error(f"Error triggering training: {str(e)}")
