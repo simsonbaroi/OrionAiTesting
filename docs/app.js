@@ -121,41 +121,108 @@ function setupEventListeners() {
     });
 }
 
-// Dashboard statistics
+// Dashboard statistics with growth tracking
 async function loadDashboardStats() {
     try {
-        // Count actual data from database
-        const [knowledgeSnapshot, queriesSnapshot, trainingSnapshot] = await Promise.all([
+        // Get current data and historical stats
+        const [knowledgeSnapshot, queriesSnapshot, trainingSnapshot, statsSnapshot, collectionSnapshot] = await Promise.all([
             database.ref('knowledgeBase').once('value'),
             database.ref('queries').once('value'),
-            database.ref('trainingData').once('value')
+            database.ref('trainingData').once('value'),
+            database.ref('stats').once('value'),
+            database.ref('admin/dataCollection').once('value')
         ]);
         
         const knowledgeCount = Object.keys(knowledgeSnapshot.val() || {}).length;
         const queriesCount = Object.keys(queriesSnapshot.val() || {}).length;
         const trainingCount = Object.keys(trainingSnapshot.val() || {}).length;
         
+        const previousStats = statsSnapshot.val() || {};
+        const collectionInfo = collectionSnapshot.val() || {};
+        
+        // Calculate growth
+        const knowledgeGrowth = knowledgeCount - (previousStats.knowledgeBase || 0);
+        const queriesGrowth = queriesCount - (previousStats.userQueries || 0);
+        const trainingGrowth = trainingCount - (previousStats.trainingData || 0);
+        
+        // Calculate collection rate (items per hour)
+        let collectionRate = 0;
+        if (collectionInfo.timestamp && collectionInfo.itemsCollected) {
+            const hoursSinceCollection = (Date.now() - collectionInfo.timestamp) / (1000 * 60 * 60);
+            collectionRate = hoursSinceCollection > 0 ? Math.round(collectionInfo.itemsCollected / hoursSinceCollection) : 0;
+        }
+        
+        // Update display counters
         document.getElementById('knowledge-count').textContent = knowledgeCount;
         document.getElementById('queries-count').textContent = queriesCount;
         document.getElementById('training-count').textContent = trainingCount;
+        document.getElementById('collection-rate').textContent = collectionRate;
+        
+        // Update growth indicators
+        document.getElementById('knowledge-growth').textContent = knowledgeGrowth > 0 ? `+${knowledgeGrowth} today` : 'No change';
+        document.getElementById('queries-growth').textContent = queriesGrowth > 0 ? `+${queriesGrowth} today` : 'No change';
+        document.getElementById('training-growth').textContent = trainingGrowth > 0 ? `+${trainingGrowth} today` : 'No change';
+        
+        // Update last collection time
+        if (collectionInfo.timestamp) {
+            const lastCollection = new Date(collectionInfo.timestamp);
+            const timeDiff = Date.now() - collectionInfo.timestamp;
+            const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+            const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+            
+            let timeText;
+            if (hours > 0) {
+                timeText = `${hours}h ${minutes}m ago`;
+            } else if (minutes > 0) {
+                timeText = `${minutes}m ago`;
+            } else {
+                timeText = 'Just now';
+            }
+            
+            document.getElementById('last-collection').textContent = timeText;
+        } else {
+            document.getElementById('last-collection').textContent = 'Never';
+        }
+        
+        // Color growth indicators
+        const growthElements = [
+            { element: document.getElementById('knowledge-growth'), growth: knowledgeGrowth },
+            { element: document.getElementById('queries-growth'), growth: queriesGrowth },
+            { element: document.getElementById('training-growth'), growth: trainingGrowth }
+        ];
+        
+        growthElements.forEach(item => {
+            if (item.growth > 0) {
+                item.element.className = 'text-success';
+            } else {
+                item.element.className = 'text-muted';
+            }
+        });
         
         // Update stats in database
         await database.ref('stats').set({
             knowledgeBase: knowledgeCount,
             userQueries: queriesCount,
             trainingData: trainingCount,
-            lastUpdated: Date.now()
+            lastUpdated: Date.now(),
+            growth: {
+                knowledge: knowledgeGrowth,
+                queries: queriesGrowth,
+                training: trainingGrowth
+            },
+            collectionRate: collectionRate
         });
         
         isFirebaseConnected = true;
-        console.log('Stats loaded successfully');
+        console.log(`Stats loaded: ${knowledgeCount} knowledge, ${queriesCount} queries, ${trainingCount} training`);
         
     } catch (error) {
         console.error('Error loading stats:', error);
-        // Use demo data if database fails
+        // Use initial values if database fails
         document.getElementById('knowledge-count').textContent = 0;
         document.getElementById('queries-count').textContent = 0;
         document.getElementById('training-count').textContent = 0;
+        document.getElementById('collection-rate').textContent = 0;
         isFirebaseConnected = false;
     }
 }
@@ -531,63 +598,102 @@ function displayMetricsTable(data) {
 // Admin functions
 async function triggerDataCollection() {
     const statusDiv = document.getElementById('system-status');
-    statusDiv.innerHTML = '<div class="alert alert-info">Starting data collection...</div>';
+    statusDiv.innerHTML = '<div class="alert alert-info"><div class="d-flex align-items-center"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Starting continuous data collection...</div></div>';
+    
+    let totalCollected = 0;
     
     try {
         // Start collection process
         await database.ref('admin/dataCollection').set({
             timestamp: Date.now(),
             status: 'in_progress',
-            progress: 0
+            progress: 0,
+            phase: 'initializing'
         });
         
-        // Python documentation content (curated for reliability)
-        const pythonContent = [
+        // Phase 1: Python Documentation (Core Concepts)
+        const coreTopics = [
             {
-                title: 'Python Lists - Complete Guide',
-                content: 'Lists are ordered collections in Python. Create: my_list = [1, 2, 3]. Methods: append(), extend(), insert(), remove(), pop(), index(), count(). Lists are mutable and support slicing: my_list[1:3]. Use list comprehensions for efficient creation: [x*2 for x in range(10)].',
+                title: 'Python Lists - Data Structure Fundamentals',
+                content: 'Lists are mutable, ordered sequences in Python. Create with my_list = [1, 2, 3] or list(). Key methods: append() adds to end, extend() adds multiple items, insert(index, item) adds at position, remove(value) deletes first occurrence, pop() removes and returns last item. Support slicing my_list[start:end:step] and comprehensions [expr for item in iterable if condition].',
                 url: 'https://docs.python.org/3/tutorial/datastructures.html#more-on-lists',
-                sourceType: 'python_documentation'
+                sourceType: 'python_documentation',
+                difficulty: 'beginner'
             },
             {
-                title: 'Python Functions and Parameters',
-                content: 'Define functions with def keyword: def my_func(param): return param * 2. Support default parameters: def greet(name="World"): return f"Hello {name}". Use *args for variable arguments, **kwargs for keyword arguments. Lambda functions: lambda x: x*2.',
+                title: 'Python Functions - Advanced Concepts',
+                content: 'Functions are first-class objects in Python. Define with def name(params): return value. Support default arguments def func(a=1), variable arguments *args, keyword arguments **kwargs. Lambda functions: lambda x: x*2. Decorators modify function behavior: @decorator. Closures capture variables from enclosing scope. Use docstrings for documentation.',
                 url: 'https://docs.python.org/3/tutorial/controlflow.html#defining-functions',
-                sourceType: 'python_documentation'
+                sourceType: 'python_documentation',
+                difficulty: 'intermediate'
             },
             {
-                title: 'Python Exception Handling',
-                content: 'Handle errors with try-except: try: risky_code() except ValueError: handle_error(). Use multiple except blocks for different exceptions. finally block always executes. raise keyword to throw exceptions. Create custom exceptions by inheriting from Exception.',
+                title: 'Python Exception Handling - Error Management',
+                content: 'Exception handling provides error recovery mechanisms. try-except catches specific errors: except ValueError as e. Multiple except blocks handle different exceptions. else clause runs if no exceptions occur. finally always executes for cleanup. raise manually throws exceptions. Create custom exceptions by inheriting from Exception class.',
                 url: 'https://docs.python.org/3/tutorial/errors.html',
-                sourceType: 'python_documentation'
+                sourceType: 'python_documentation',
+                difficulty: 'intermediate'
             },
             {
-                title: 'Python Dictionaries and Mapping',
-                content: 'Dictionaries store key-value pairs: my_dict = {"key": "value"}. Methods: get(), keys(), values(), items(), update(), pop(). Dict comprehensions: {k: v for k, v in items}. Use defaultdict for missing keys. OrderedDict maintains insertion order.',
+                title: 'Python Dictionaries - Mapping Operations',
+                content: 'Dictionaries are mutable key-value mappings. Create with {key: value} or dict(). Methods: get(key, default) safe access, keys() returns key view, values() returns value view, items() returns key-value pairs, update() merges dictionaries, pop(key) removes and returns value. Use collections.defaultdict for automatic default values.',
                 url: 'https://docs.python.org/3/tutorial/datastructures.html#dictionaries',
-                sourceType: 'python_documentation'
+                sourceType: 'python_documentation',
+                difficulty: 'beginner'
             },
             {
-                title: 'Python Classes and Objects',
-                content: 'Define classes with class keyword: class MyClass: pass. Constructor: __init__(self, args). Instance methods take self as first parameter. Class variables vs instance variables. Inheritance: class Child(Parent). Use super() to call parent methods.',
+                title: 'Python Classes - Object-Oriented Programming',
+                content: 'Classes define object blueprints. class ClassName: defines class, __init__(self, args) constructor initializes instances. Instance methods take self as first parameter. Class variables shared across instances, instance variables unique per object. Inheritance: class Child(Parent). super() calls parent methods. Property decorators create managed attributes.',
                 url: 'https://docs.python.org/3/tutorial/classes.html',
-                sourceType: 'python_documentation'
+                sourceType: 'python_documentation',
+                difficulty: 'intermediate'
             },
             {
-                title: 'Python File I/O Operations',
-                content: 'Open files with open(): with open("file.txt", "r") as f: content = f.read(). Modes: "r" (read), "w" (write), "a" (append), "b" (binary). Use context managers (with statement) for automatic file closing. Methods: read(), readline(), readlines(), write().',
+                title: 'Python File I/O - Data Persistence',
+                content: 'File operations handle data persistence. with open(filename, mode) as file: ensures automatic closing. Modes: "r" read text, "w" write text, "a" append, "b" binary, "x" exclusive creation. Methods: read() entire content, readline() single line, readlines() all lines, write() text output. Use pathlib for modern path operations.',
                 url: 'https://docs.python.org/3/tutorial/inputoutput.html#reading-and-writing-files',
-                sourceType: 'python_documentation'
+                sourceType: 'python_documentation',
+                difficulty: 'beginner'
             }
         ];
         
-        statusDiv.innerHTML = '<div class="alert alert-info">Adding Python documentation content...</div>';
+        // Phase 2: Advanced Python Topics
+        const advancedTopics = [
+            {
+                title: 'Python Generators - Memory Efficient Iteration',
+                content: 'Generators produce items on demand using yield keyword. Generator functions return generator objects. yield pauses execution and returns value, resuming on next call. Generator expressions: (expr for item in iterable). More memory efficient than lists for large datasets. Use itertools module for advanced generator operations.',
+                url: 'https://docs.python.org/3/tutorial/classes.html#generators',
+                sourceType: 'python_documentation',
+                difficulty: 'advanced'
+            },
+            {
+                title: 'Python Decorators - Function Modification',
+                content: 'Decorators modify or extend function behavior. @decorator syntax applies decorator to function. Common patterns: @property for getters/setters, @staticmethod for utility functions, @classmethod for alternative constructors. functools.wraps preserves original function metadata. Can be stacked for multiple modifications.',
+                url: 'https://docs.python.org/3/glossary.html#term-decorator',
+                sourceType: 'python_documentation',
+                difficulty: 'advanced'
+            },
+            {
+                title: 'Python Context Managers - Resource Management',
+                content: 'Context managers handle resource allocation and cleanup. with statement ensures proper resource management. __enter__ and __exit__ methods define context manager protocol. contextlib.contextmanager decorator creates context managers from generator functions. Useful for file handling, database connections, locks.',
+                url: 'https://docs.python.org/3/reference/datamodel.html#context-managers',
+                sourceType: 'python_documentation',
+                difficulty: 'advanced'
+            },
+            {
+                title: 'Python Modules and Packages - Code Organization',
+                content: 'Modules are Python files containing code. import statement loads modules. Packages are directories with __init__.py file. from module import name imports specific items. __name__ == "__main__" checks if script is run directly. sys.path controls module search locations. Use relative imports within packages.',
+                url: 'https://docs.python.org/3/tutorial/modules.html',
+                sourceType: 'python_documentation',
+                difficulty: 'intermediate'
+            }
+        ];
         
-        let collectedCount = 0;
+        statusDiv.innerHTML = '<div class="alert alert-info"><div class="d-flex align-items-center"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Phase 1: Collecting core Python concepts...</div></div>';
         
-        // Add Python documentation content
-        for (let i = 0; i < pythonContent.length; i++) {
-            const item = pythonContent[i];
+        // Collect core topics
+        for (let i = 0; i < coreTopics.length; i++) {
+            const item = coreTopics[i];
             
             try {
                 await database.ref('knowledgeBase').push({
@@ -595,91 +701,206 @@ async function triggerDataCollection() {
                     content: item.content,
                     sourceType: item.sourceType,
                     sourceUrl: item.url,
-                    qualityScore: 0.95, // High quality for curated content
-                    createdAt: new Date().toISOString()
+                    difficulty: item.difficulty,
+                    qualityScore: 0.95,
+                    createdAt: new Date().toISOString(),
+                    collectionBatch: Date.now()
                 });
                 
-                collectedCount++;
+                totalCollected++;
                 
-                // Update progress
-                const progress = ((i + 1) / pythonContent.length) * 100;
+                // Update progress and stats in real-time
+                const progress = ((i + 1) / (coreTopics.length + advancedTopics.length)) * 50;
                 await database.ref('admin/dataCollection/progress').set(progress);
+                await updateRealTimeStats();
                 
-                statusDiv.innerHTML = `<div class="alert alert-info">Added ${i + 1}/${pythonContent.length} documentation items...</div>`;
+                statusDiv.innerHTML = `<div class="alert alert-info">Phase 1: Added ${i + 1}/${coreTopics.length} core topics (Total: ${totalCollected})</div>`;
                 
-                // Small delay to show progress
-                await new Promise(resolve => setTimeout(resolve, 100));
+                await new Promise(resolve => setTimeout(resolve, 200));
                 
             } catch (error) {
-                console.error('Error storing item:', error);
+                console.error('Error storing core topic:', error);
             }
         }
         
-        // Try to collect from external APIs (with fallback)
+        statusDiv.innerHTML = '<div class="alert alert-info"><div class="d-flex align-items-center"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Phase 2: Collecting advanced Python concepts...</div></div>';
+        
+        // Collect advanced topics
+        for (let i = 0; i < advancedTopics.length; i++) {
+            const item = advancedTopics[i];
+            
+            try {
+                await database.ref('knowledgeBase').push({
+                    title: item.title,
+                    content: item.content,
+                    sourceType: item.sourceType,
+                    sourceUrl: item.url,
+                    difficulty: item.difficulty,
+                    qualityScore: 0.92,
+                    createdAt: new Date().toISOString(),
+                    collectionBatch: Date.now()
+                });
+                
+                totalCollected++;
+                
+                // Update progress and stats
+                const progress = 50 + ((i + 1) / advancedTopics.length) * 30;
+                await database.ref('admin/dataCollection/progress').set(progress);
+                await updateRealTimeStats();
+                
+                statusDiv.innerHTML = `<div class="alert alert-info">Phase 2: Added ${i + 1}/${advancedTopics.length} advanced topics (Total: ${totalCollected})</div>`;
+                
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+            } catch (error) {
+                console.error('Error storing advanced topic:', error);
+            }
+        }
+        
+        // Phase 3: Try to collect from real APIs
+        statusDiv.innerHTML = '<div class="alert alert-info"><div class="d-flex align-items-center"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Phase 3: Attempting external API collection...</div></div>';
+        
         try {
-            statusDiv.innerHTML = '<div class="alert alert-info">Attempting to fetch from external APIs...</div>';
+            // Try multiple proxy services for better success rate
+            const proxyServices = [
+                'https://api.allorigins.win/get?url=',
+                'https://cors-anywhere.herokuapp.com/',
+                'https://api.codetabs.com/v1/proxy?quest='
+            ];
             
-            // Try Stack Overflow API (with CORS proxy)
-            const corsProxy = 'https://api.allorigins.win/get?url=';
-            const stackOverflowUrl = encodeURIComponent('https://api.stackexchange.com/2.3/questions?order=desc&sort=votes&tagged=python&site=stackoverflow&pagesize=3');
-            
-            const response = await fetch(`${corsProxy}${stackOverflowUrl}`);
-            const data = await response.json();
-            const stackData = JSON.parse(data.contents);
-            
-            if (stackData.items) {
-                for (const item of stackData.items.slice(0, 3)) {
-                    await database.ref('knowledgeBase').push({
-                        title: item.title,
-                        content: item.title + ' - ' + (item.body_markdown || 'Stack Overflow Python question'),
-                        sourceType: 'stackoverflow',
-                        sourceUrl: item.link,
-                        qualityScore: Math.min(0.8 + (item.score / 1000), 1.0),
-                        createdAt: new Date().toISOString()
+            for (const proxy of proxyServices) {
+                try {
+                    const stackOverflowUrl = 'https://api.stackexchange.com/2.3/questions?order=desc&sort=votes&tagged=python&site=stackoverflow&pagesize=5&filter=withbody';
+                    const apiUrl = proxy.includes('codetabs') ? proxy + encodeURIComponent(stackOverflowUrl) : proxy + encodeURIComponent(stackOverflowUrl);
+                    
+                    const response = await fetch(apiUrl, {
+                        headers: {
+                            'Accept': 'application/json',
+                        }
                     });
-                    collectedCount++;
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        let stackData;
+                        
+                        if (data.contents) {
+                            stackData = JSON.parse(data.contents);
+                        } else {
+                            stackData = data;
+                        }
+                        
+                        if (stackData.items && stackData.items.length > 0) {
+                            for (const item of stackData.items.slice(0, 3)) {
+                                await database.ref('knowledgeBase').push({
+                                    title: item.title,
+                                    content: item.body ? item.body.substring(0, 1000) : item.title + ' - Popular Python question from Stack Overflow',
+                                    sourceType: 'stackoverflow',
+                                    sourceUrl: item.link,
+                                    difficulty: 'mixed',
+                                    qualityScore: Math.min(0.8 + (item.score / 1000), 1.0),
+                                    createdAt: new Date().toISOString(),
+                                    collectionBatch: Date.now(),
+                                    votes: item.score
+                                });
+                                totalCollected++;
+                            }
+                            
+                            statusDiv.innerHTML = `<div class="alert alert-success">Successfully collected ${stackData.items.length} items from Stack Overflow API (Total: ${totalCollected})</div>`;
+                            await updateRealTimeStats();
+                            break;
+                        }
+                    }
+                } catch (proxyError) {
+                    console.log(`Proxy ${proxy} failed:`, proxyError);
+                    continue;
                 }
             }
         } catch (error) {
-            console.log('External API collection failed (expected due to CORS), using curated content only');
+            console.log('All external API attempts failed, using curated content only');
         }
+        
+        // Final progress update
+        await database.ref('admin/dataCollection/progress').set(100);
         
         // Mark collection complete
         await database.ref('admin/dataCollection').set({
             timestamp: Date.now(),
             status: 'completed',
-            itemsCollected: collectedCount,
-            progress: 100
+            itemsCollected: totalCollected,
+            progress: 100,
+            phases: {
+                coreTopics: coreTopics.length,
+                advancedTopics: advancedTopics.length,
+                externalAPIs: Math.max(0, totalCollected - coreTopics.length - advancedTopics.length)
+            }
         });
+        
+        // Final stats update
+        await updateRealTimeStats();
         
         statusDiv.innerHTML = `
             <div class="alert alert-success">
-                <strong>Data collection completed successfully!</strong><br>
-                📚 Collected ${collectedCount} new knowledge base items<br>
-                🎯 High-quality Python documentation content added<br>
-                ✅ Database updated with structured learning materials
+                <h5 class="alert-heading">Data Collection Completed Successfully!</h5>
+                <hr>
+                <p class="mb-1"><strong>Total Items Collected:</strong> ${totalCollected}</p>
+                <p class="mb-1"><strong>Core Python Topics:</strong> ${coreTopics.length}</p>
+                <p class="mb-1"><strong>Advanced Topics:</strong> ${advancedTopics.length}</p>
+                <p class="mb-1"><strong>External API Data:</strong> ${Math.max(0, totalCollected - coreTopics.length - advancedTopics.length)}</p>
+                <hr>
+                <p class="mb-0">Knowledge base has been updated with high-quality Python learning content across multiple difficulty levels.</p>
             </div>
         `;
         
-        // Update stats and refresh displays
-        await loadDashboardStats();
+        // Refresh database view if currently viewing
         if (currentSection === 'database') {
             loadKnowledgeData();
         }
         
     } catch (error) {
         console.error('Data collection error:', error);
-        statusDiv.innerHTML = `<div class="alert alert-danger">Data collection failed: ${error.message}<br>Check console for details.</div>`;
+        statusDiv.innerHTML = `<div class="alert alert-danger"><strong>Data collection failed:</strong> ${error.message}<br>Total items collected before error: ${totalCollected}</div>`;
         
         try {
             await database.ref('admin/dataCollection').set({
                 timestamp: Date.now(),
                 status: 'failed',
-                error: error.message
+                error: error.message,
+                itemsCollectedBeforeError: totalCollected
             });
         } catch (dbError) {
             console.error('Failed to log error to database:', dbError);
         }
+    }
+}
+
+// Real-time statistics update function
+async function updateRealTimeStats() {
+    try {
+        const [knowledgeSnapshot, queriesSnapshot, trainingSnapshot] = await Promise.all([
+            database.ref('knowledgeBase').once('value'),
+            database.ref('queries').once('value'),
+            database.ref('trainingData').once('value')
+        ]);
+        
+        const knowledgeCount = Object.keys(knowledgeSnapshot.val() || {}).length;
+        const queriesCount = Object.keys(queriesSnapshot.val() || {}).length;
+        const trainingCount = Object.keys(trainingSnapshot.val() || {}).length;
+        
+        // Update display counters immediately
+        document.getElementById('knowledge-count').textContent = knowledgeCount;
+        document.getElementById('queries-count').textContent = queriesCount;
+        document.getElementById('training-count').textContent = trainingCount;
+        
+        // Update database stats
+        await database.ref('stats').set({
+            knowledgeBase: knowledgeCount,
+            userQueries: queriesCount,
+            trainingData: trainingCount,
+            lastUpdated: Date.now()
+        });
+        
+    } catch (error) {
+        console.error('Error updating real-time stats:', error);
     }
 }
 
