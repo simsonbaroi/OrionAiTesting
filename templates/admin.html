@@ -382,5 +382,34 @@
             }
         });
     }
+    
+    function refreshData() {
+        // Reload the page to show updated statistics
+        location.reload();
+    }
+    
+    // Auto-refresh dashboard every 30 seconds to show progress
+    setInterval(function() {
+        // Update statistics without full page reload
+        fetch('/api/stats')
+            .then(response => response.json())
+            .then(data => {
+                if (data.basic_stats) {
+                    // Update the statistics cards
+                    const knowledgeCard = document.querySelector('.card.bg-primary h3.card-title');
+                    if (knowledgeCard) knowledgeCard.textContent = data.basic_stats.knowledge_base || 0;
+                    
+                    const trainingCard = document.querySelector('.card.bg-success h3.card-title');
+                    if (trainingCard) trainingCard.textContent = data.basic_stats.training_data || 0;
+                    
+                    const queriesCard = document.querySelector('.card.bg-info h3.card-title');
+                    if (queriesCard) queriesCard.textContent = data.basic_stats.user_queries || 0;
+                    
+                    const unusedCard = document.querySelector('.card.bg-warning h3.card-title');
+                    if (unusedCard) unusedCard.textContent = data.basic_stats.unused_training_data || 0;
+                }
+            })
+            .catch(error => console.log('Auto-refresh failed:', error));
+    }, 30000);
 </script>
 {% endblock %}

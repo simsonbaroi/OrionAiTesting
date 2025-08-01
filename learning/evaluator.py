@@ -53,8 +53,16 @@ class ModelEvaluator:
                     
                     # Generate response
                     start_time = time.time()
-                    response, response_time = ai_model.generate_response(question)
+                    ai_response = ai_model.generate_response(question)
                     end_time = time.time()
+                    
+                    # Handle different response formats
+                    if isinstance(ai_response, tuple):
+                        response = ai_response[0]
+                        confidence = ai_response[1] if len(ai_response) > 1 else 0.0
+                    else:
+                        response = str(ai_response)
+                        confidence = 0.0
                     
                     actual_response_time = end_time - start_time
                     response_times.append(actual_response_time)
