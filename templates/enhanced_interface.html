@@ -220,7 +220,7 @@
                         
                         <div class="mb-3">
                             <div class="row">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <select class="form-select bg-dark text-light border-secondary" id="language-select">
                                         <option value="">Auto-detect language</option>
                                         <option value="python">Python</option>
@@ -235,7 +235,7 @@
                                         <option value="cpp">C++</option>
                                     </select>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <select class="form-select bg-dark text-light border-secondary" id="request-type">
                                         <option value="general">General Question</option>
                                         <option value="code_generation">Code Generation</option>
@@ -243,6 +243,35 @@
                                         <option value="learning">Learning</option>
                                         <option value="architecture">Architecture</option>
                                     </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <select class="form-select bg-dark text-light border-secondary" id="ai-model">
+                                        <option value="auto">🤖 Auto-Select Best</option>
+                                        <option value="openai">🟢 OpenAI GPT-4o</option>
+                                        <option value="deepseek">🔵 DeepSeek Coder</option>
+                                        <option value="both">⚡ Compare Both</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="show-analytics">
+                                        <label class="form-check-label" for="show-analytics">
+                                            Show model performance analytics
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="small text-muted">
+                                        <span class="status-indicator status-online"></span>OpenAI Available
+                                        <span class="ms-3">
+                                            <span class="status-indicator status-online"></span>DeepSeek Available
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -261,11 +290,16 @@
                                       placeholder="Additional context (optional): project details, framework version, etc."></textarea>
                         </div>
                         
-                        <div class="d-flex align-items-center">
-                            <button class="btn btn-ai me-3" id="ask-btn">
-                                <i class="fas fa-paper-plane me-2"></i>Ask AI
-                            </button>
-                            <div class="loading-spinner" id="loading-spinner"></div>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <button class="btn btn-ai me-3" id="ask-btn">
+                                    <i class="fas fa-paper-plane me-2"></i>Ask AI
+                                </button>
+                                <div class="loading-spinner" id="loading-spinner"></div>
+                            </div>
+                            <div class="small text-muted">
+                                <span id="model-status">Ready</span>
+                            </div>
                         </div>
                         
                         <div id="response-container"></div>
@@ -532,6 +566,8 @@
                 const language = document.getElementById('language-select').value;
                 const context = document.getElementById('context-input').value.trim();
                 const requestType = document.getElementById('request-type').value;
+                const aiModel = document.getElementById('ai-model').value;
+                const showAnalytics = document.getElementById('show-analytics').checked;
                 
                 if (!question) {
                     this.showError('Please enter a question');
@@ -539,6 +575,10 @@
                 }
                 
                 this.showLoading(true);
+                this.updateModelStatus('Processing...');
+                
+                // Determine if we should use both models
+                const useBothModels = aiModel === 'both' || (aiModel === 'auto' && showAnalytics);
                 
                 try {
                     const response = await fetch('/api/enhanced-ask', {
@@ -548,7 +588,9 @@
                             question: question,
                             language: language,
                             context: context,
-                            request_type: requestType
+                            request_type: requestType,
+                            use_both_models: useBothModels,
+                            preferred_model: aiModel === 'auto' ? null : aiModel
                         })
                     });
                     
@@ -556,6 +598,9 @@
                     
                     if (data.success) {
                         this.displayResponse(data);
+                        if (showAnalytics && data.comparison_mode) {
+                            this.displayModelComparison(data);
+                        }
                     } else {
                         this.showError(data.error || 'An error occurred');
                     }
@@ -563,6 +608,7 @@
                     this.showError('Network error: ' + error.message);
                 } finally {
                     this.showLoading(false);
+                    this.updateModelStatus('Ready');
                 }
             }
             
@@ -687,12 +733,23 @@
                     return `<pre><code class="language-${lang || 'text'}">${this.escapeHtml(code)}</code></pre>`;
                 });
                 
+                let modelBadge = '';
+                if (data.component_used === 'openai') {
+                    modelBadge = '<span class="badge bg-success me-2">🟢 OpenAI GPT-4o</span>';
+                } else if (data.component_used === 'deepseek') {
+                    modelBadge = '<span class="badge bg-primary me-2">🔵 DeepSeek</span>';
+                } else {
+                    modelBadge = `<span class="badge bg-secondary me-2">${data.component_used}</span>`;
+                }
+                
                 container.innerHTML = `
                     <div class="response-card">
                         <div class="d-flex align-items-center mb-3">
                             <span class="language-badge me-2">${data.language || 'General'}</span>
-                            <span class="badge bg-secondary me-2">${data.component_used}</span>
+                            ${modelBadge}
                             <small class="text-muted">${data.response_time}s</small>
+                            ${data.tokens_used ? `<small class="text-muted ms-2">${data.tokens_used} tokens</small>` : ''}
+                            ${data.quality_score ? `<small class="text-muted ms-2">Quality: ${Math.round(data.quality_score * 100)}%</small>` : ''}
                         </div>
                         <div class="response-content">${response}</div>
                         ${data.capabilities && data.capabilities.length > 0 ? `
@@ -705,6 +762,50 @@
                 
                 // Highlight code blocks
                 Prism.highlightAllUnder(container);
+            }
+            
+            displayModelComparison(data) {
+                const container = document.getElementById('response-container');
+                const existingContent = container.innerHTML;
+                
+                if (data.openai_response && data.deepseek_response) {
+                    const comparisonHtml = `
+                        <div class="response-card mt-3">
+                            <h5 class="mb-3">🔄 Model Comparison</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <span class="badge bg-success me-2">🟢 OpenAI GPT-4o</span>
+                                            <small class="text-muted">${data.openai_time}s, ${data.openai_tokens} tokens</small>
+                                        </div>
+                                        <div class="small">${data.openai_response.substring(0, 200)}...</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <span class="badge bg-primary me-2">🔵 DeepSeek</span>
+                                            <small class="text-muted">${data.deepseek_time}s, ${data.deepseek_tokens} tokens</small>
+                                        </div>
+                                        <div class="small">${data.deepseek_response.substring(0, 200)}...</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-center">
+                                <small class="text-muted">Primary response from: <strong>${data.primary_model}</strong></small>
+                            </div>
+                        </div>
+                    `;
+                    container.innerHTML = existingContent + comparisonHtml;
+                }
+            }
+            
+            updateModelStatus(status) {
+                const statusElement = document.getElementById('model-status');
+                if (statusElement) {
+                    statusElement.textContent = status;
+                }
             }
             
             displayCodeGeneration(data) {

@@ -13,6 +13,7 @@ from .ml_training_system import MLTrainingSystem
 from .web_framework_expert import web_expert
 from .self_troubleshooting_ai import troubleshooting_ai
 from .openai_enhanced_ai import openai_ai
+from .multi_model_ai import multi_model_ai
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class IntegratedAISystem:
         self.web_expert = web_expert
         self.troubleshooting_ai = troubleshooting_ai
         self.openai_ai = openai_ai
+        self.multi_model_ai = multi_model_ai
         
         # Component availability
         self.components = {
@@ -34,7 +36,9 @@ class IntegratedAISystem:
             'ml_training': True,
             'web_framework_expert': True,
             'self_troubleshooting': True,
-            'openai_enhanced': bool(self.openai_ai.openai_client)
+            'openai_enhanced': bool(self.openai_ai.openai_client),
+            'multi_model_ai': bool(self.multi_model_ai.openai_client or self.multi_model_ai.deepseek_available),
+            'deepseek_available': self.multi_model_ai.deepseek_available
         }
         
         logger.info(f"Integrated AI System initialized with components: {self.components}")

@@ -23,7 +23,7 @@ def init_enhanced_routes(app):
     
     @app.route('/api/enhanced-ask', methods=['POST'])
     def enhanced_ask_question():
-        """Enhanced question handling with integrated AI system"""
+        """Enhanced question handling with multi-model AI system"""
         try:
             data = request.get_json()
             if not data:
@@ -33,6 +33,7 @@ def init_enhanced_routes(app):
             language = data.get('language', '').strip()
             context = data.get('context', '').strip()
             request_type = data.get('request_type', 'general').strip()
+            use_both_models = data.get('use_both_models', False)
             
             if not question:
                 return jsonify({'error': 'Question cannot be empty'}), 400
@@ -45,16 +46,28 @@ def init_enhanced_routes(app):
             if not validate_question(question):
                 return jsonify({'error': 'Invalid question format'}), 400
             
-            # Process with integrated AI system
+            # Process with multi-model AI system if available
             start_time = time.time()
-            ai_response = integrated_ai.process_query(
-                query=question,
-                language=language,
-                context=context,
-                request_type=request_type
-            )
-            end_time = time.time()
             
+            if integrated_ai.components['multi_model_ai']:
+                import asyncio
+                ai_response = asyncio.run(integrated_ai.multi_model_ai.generate_enhanced_response(
+                    query=question,
+                    language=language or 'general',
+                    context=context,
+                    task_type=request_type,
+                    use_both_models=use_both_models
+                ))
+            else:
+                # Fallback to integrated AI system
+                ai_response = integrated_ai.process_query(
+                    query=question,
+                    language=language,
+                    context=context,
+                    request_type=request_type
+                )
+            
+            end_time = time.time()
             total_response_time = end_time - start_time
             
             # Store the query in database
@@ -72,16 +85,35 @@ def init_enhanced_routes(app):
                 logger.error(f"Error storing user query: {str(e)}")
                 query_id = None
             
-            return jsonify({
-                'success': True,
+            # Enhanced response with multi-model data
+            response_data = {
+                'success': ai_response.get('success', True),
                 'response': ai_response.get('response', ''),
-                'component_used': ai_response.get('component_used', 'unknown'),
+                'component_used': ai_response.get('model_used', ai_response.get('component_used', 'unknown')),
                 'language': ai_response.get('language', language),
-                'capabilities': ai_response.get('capabilities', []),
                 'response_time': round(total_response_time, 2),
-                'query_id': query_id,
-                'enhancements': ai_response.get('enhancements', {})
-            })
+                'query_id': query_id
+            }
+            
+            # Add multi-model specific data
+            if 'response_type' in ai_response and ai_response['response_type'] == 'comparison':
+                response_data.update({
+                    'comparison_mode': True,
+                    'openai_response': ai_response.get('openai_response'),
+                    'deepseek_response': ai_response.get('deepseek_response'),
+                    'primary_model': ai_response.get('primary_model'),
+                    'openai_tokens': ai_response.get('openai_tokens', 0),
+                    'deepseek_tokens': ai_response.get('deepseek_tokens', 0)
+                })
+            else:
+                response_data.update({
+                    'tokens_used': ai_response.get('tokens_used', 0),
+                    'quality_score': ai_response.get('quality_score', 0.8),
+                    'capabilities': ai_response.get('capabilities', []),
+                    'enhancements': ai_response.get('enhancements', {})
+                })
+            
+            return jsonify(response_data)
             
         except Exception as e:
             logger.error(f"Error in enhanced question processing: {str(e)}")
@@ -486,3 +518,46 @@ def init_enhanced_routes(app):
         except Exception as e:
             logger.error(f"Error getting AI insights: {str(e)}")
             return jsonify({'error': 'Failed to get AI insights'}), 500
+    
+    @app.route('/api/multi-model-analytics')
+    def get_multi_model_analytics():
+        """Get multi-model AI analytics and performance data"""
+        try:
+            if not integrated_ai.components['multi_model_ai']:
+                return jsonify({'error': 'Multi-model AI not available'}), 404
+            
+            analytics = integrated_ai.multi_model_ai.get_model_analytics()
+            
+            return jsonify({
+                'success': True,
+                'analytics': analytics
+            })
+            
+        except Exception as e:
+            logger.error(f"Error getting multi-model analytics: {str(e)}")
+            return jsonify({'error': 'Failed to get analytics'}), 500
+    
+    @app.route('/api/model-suggestion', methods=['POST'])
+    def get_model_suggestion():
+        """Get optimal model suggestion for a specific task"""
+        try:
+            if not integrated_ai.components['multi_model_ai']:
+                return jsonify({'error': 'Multi-model AI not available'}), 404
+            
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'No JSON data provided'}), 400
+            
+            task_type = data.get('task_type', 'general').strip()
+            language = data.get('language', 'general').strip()
+            
+            suggestion = integrated_ai.multi_model_ai.suggest_optimal_model(task_type, language)
+            
+            return jsonify({
+                'success': True,
+                'suggestion': suggestion
+            })
+            
+        except Exception as e:
+            logger.error(f"Error getting model suggestion: {str(e)}")
+            return jsonify({'error': 'Failed to get model suggestion'}), 500
