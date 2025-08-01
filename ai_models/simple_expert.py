@@ -39,6 +39,33 @@ class SimplePythonExpert:
     def _init_response_database(self) -> Dict[str, str]:
         """Initialize a comprehensive response database for multiple programming languages"""
         return {
+            # Conversational greetings and basic interactions
+            "hello": "Hello! I'm PyLearnAI, your friendly programming assistant. I'm here to help you with Python, HTML, CSS, JavaScript, React, and general programming questions. How can I assist you today?",
+            
+            "hi": "Hi there! Welcome to PyLearnAI! I can help you with:\n• Python programming\n• Web development (HTML, CSS, JavaScript)\n• React applications\n• Creating complete apps\n• Debugging and troubleshooting\n\nWhat would you like to learn or build today?",
+            
+            "hey": "Hey! Good to see you here! I'm your AI programming tutor. Whether you're a beginner or looking to build something specific, I'm here to help. What's on your mind?",
+            
+            "good morning": "Good morning! Ready to code something amazing today? I can help you with Python, web development, or creating complete applications. What would you like to work on?",
+            
+            "good afternoon": "Good afternoon! Hope you're having a productive day. I'm here to help with any programming questions or if you want to build something cool. What can I help you with?",
+            
+            "good evening": "Good evening! Perfect time for some coding. Whether you want to learn something new or build an application, I'm here to help. What interests you?",
+            
+            "how are you": "I'm doing great, thank you for asking! I'm excited to help you with programming and development. I love helping people learn and create amazing applications. How are you doing?",
+            
+            "what can you do": "I can help you with lots of things! Here's what I specialize in:\n\n🐍 **Python**: Basics, advanced concepts, data structures, algorithms\n🌐 **Web Development**: HTML, CSS, JavaScript, React\n🔧 **App Creation**: I can generate complete applications for you\n🐛 **Debugging**: Help fix your code issues\n📚 **Learning**: Step-by-step tutorials and explanations\n💡 **Project Ideas**: Suggest and help build interesting projects\n\nJust ask me anything programming-related!",
+            
+            "who are you": "I'm PyLearnAI, an intelligent programming assistant built to help you learn and create. I specialize in multiple programming languages and can even generate complete applications for you. I'm connected to real-time data sources and continuously learning to provide you with the best help possible.",
+            
+            "thank you": "You're very welcome! I'm glad I could help. Feel free to ask me anything else - whether it's about programming concepts, debugging code, or creating new applications. I'm here whenever you need assistance!",
+            
+            "thanks": "You're welcome! Happy to help anytime. Keep coding and creating amazing things!",
+            
+            "bye": "Goodbye! It was great helping you today. Come back anytime you need programming assistance or want to build something new. Happy coding!",
+            
+            "goodbye": "Goodbye! Keep practicing and building amazing projects. I'll be here whenever you need help with programming or want to create something cool. Take care!",
+            
             # Python concepts
             "variables": "In Python, variables are created by assigning a value to a name. For example: `name = 'John'` creates a string variable, and `age = 25` creates an integer variable. Python is dynamically typed, so you don't need to declare the variable type explicitly.",
             
