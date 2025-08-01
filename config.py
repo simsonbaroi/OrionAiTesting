@@ -4,7 +4,7 @@ class Config:
     """Configuration settings for PyLearnAI"""
     
     # Database settings
-    DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///pylearn_ai.db")
+    DATABASE_URL = os.environ.get("DATABASE_URL")
     
     # Model settings
     MODEL_NAME = os.environ.get("MODEL_NAME", "microsoft/DialoGPT-medium")
@@ -32,5 +32,5 @@ class Config:
     MODEL_TRAINING_INTERVAL_HOURS = int(os.environ.get("MODEL_TRAINING_INTERVAL", "72"))   # hours
     
     # Flask settings
-    SECRET_KEY = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production")
+    SECRET_KEY = os.environ.get("SESSION_SECRET")
     DEBUG = os.environ.get("FLASK_DEBUG", "True").lower() == "true"
