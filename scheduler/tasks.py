@@ -255,9 +255,9 @@ def cleanup_task():
         logger.info(f"Cleaned up {len(old_logs)} old scraping logs")
         
         # Clean up old user queries (older than 90 days)
-        from models import UserQueries
+        from models import UserQuery
         cutoff_date = datetime.utcnow() - timedelta(days=90)
-        old_queries = UserQueries.query.filter(UserQueries.created_at < cutoff_date).all()
+        old_queries = UserQuery.query.filter(UserQuery.created_at < cutoff_date).all()
         
         for query in old_queries:
             db.session.delete(query)

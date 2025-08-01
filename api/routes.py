@@ -7,7 +7,7 @@ from ai_models.model_manager import ModelManager
 from learning.trainer import ModelTrainer
 from learning.evaluator import ModelEvaluator
 from data_processing.processor import DataProcessor
-from models import UserQueries, KnowledgeBase, TrainingData, ScrapingLog, ModelMetrics
+from models import UserQuery, KnowledgeBase, TrainingData, ModelMetrics
 from app import db
 from scheduler.tasks import trigger_immediate_data_collection, trigger_immediate_training, get_scheduler_status
 from utils.helpers import format_datetime, sanitize_input, validate_question
@@ -23,8 +23,8 @@ def init_routes(app):
         try:
             # Get some basic stats for the home page
             total_knowledge = KnowledgeBase.query.count()
-            total_queries = UserQueries.query.count()
-            recent_queries = UserQueries.query.order_by(UserQueries.created_at.desc()).limit(5).all()
+            total_queries = UserQuery.query.count()
+            recent_queries = UserQuery.query.order_by(UserQuery.created_at.desc()).limit(5).all()
             
             return render_template('index.html', 
                                  total_knowledge=total_knowledge,
@@ -41,6 +41,11 @@ def init_routes(app):
     def chat():
         """Chat interface page"""
         return render_template('chat.html')
+    
+    @app.route('/multi-language')
+    def multi_language_interface():
+        """Multi-language learning interface"""
+        return render_template('multi_language_interface.html')
     
     @app.route('/ask', methods=['POST'])
     def ask_question():
@@ -70,7 +75,7 @@ def init_routes(app):
             
             # Store the query in database
             try:
-                user_query = UserQueries()
+                user_query = UserQuery()
                 user_query.question = question
                 user_query.answer = response
                 user_query.response_time = total_response_time
@@ -106,7 +111,7 @@ def init_routes(app):
                 return jsonify({'error': 'Rating must be between 1 and 5'}), 400
             
             # Update the query with rating
-            user_query = UserQueries.query.get(query_id)
+            user_query = UserQuery.query.get(query_id)
             if user_query:
                 user_query.user_rating = rating
                 db.session.commit()
@@ -126,14 +131,14 @@ def init_routes(app):
             stats = {
                 'knowledge_base': KnowledgeBase.query.count(),
                 'training_data': TrainingData.query.count(),
-                'user_queries': UserQueries.query.count(),
+                'user_queries': UserQuery.query.count(),
                 'unused_training_data': TrainingData.query.filter_by(used_for_training=False).count()
             }
             
             # Get recent activities
             recent_scraping = ScrapingLog.query.order_by(ScrapingLog.started_at.desc()).limit(5).all()
             recent_metrics = ModelMetrics.query.order_by(ModelMetrics.evaluation_date.desc()).limit(5).all()
-            recent_queries = UserQueries.query.order_by(UserQueries.created_at.desc()).limit(10).all()
+            recent_queries = UserQuery.query.order_by(UserQuery.created_at.desc()).limit(10).all()
             
             # Get model information
             model_manager = ModelManager()
@@ -379,8 +384,8 @@ def init_routes(app):
                     'recent': TrainingData.query.order_by(TrainingData.created_at.desc()).limit(10).all()
                 },
                 'user_queries': {
-                    'count': UserQueries.query.count(),
-                    'recent': UserQueries.query.order_by(UserQueries.created_at.desc()).limit(10).all()
+                    'count': UserQuery.query.count(),
+                    'recent': UserQuery.query.order_by(UserQuery.created_at.desc()).limit(10).all()
                 },
                 'model_metrics': {
                     'count': ModelMetrics.query.count(),
@@ -411,7 +416,7 @@ def init_routes(app):
                 paginated = query.paginate(page=page, per_page=per_page, error_out=False)
                 data = [item.to_dict() for item in paginated.items]
             elif table_name == 'user_queries':
-                query = UserQueries.query
+                query = UserQuery.query
                 paginated = query.paginate(page=page, per_page=per_page, error_out=False)
                 data = [item.to_dict() for item in paginated.items]
             elif table_name == 'model_metrics':

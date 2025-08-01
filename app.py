@@ -42,7 +42,9 @@ with app.app_context():
     
     # Import and register routes
     from api.routes import init_routes
+    from api.multi_language_routes import multi_lang_bp
     init_routes(app)
+    app.register_blueprint(multi_lang_bp)
     
     # Start the scheduler for automated tasks
     from scheduler.tasks import setup_scheduled_tasks

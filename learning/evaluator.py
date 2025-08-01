@@ -3,7 +3,7 @@ import time
 from typing import List, Dict, Optional, Tuple
 from ai_models.python_expert import PythonExpertAI
 from data_processing.processor import DataProcessor
-from models import UserQueries, ModelMetrics
+from models import UserQuery, ModelMetrics
 from app import db
 import statistics
 
@@ -179,8 +179,8 @@ class ModelEvaluator:
             
             # Get user queries from the last N days
             cutoff_date = datetime.utcnow() - timedelta(days=days_back)
-            recent_queries = UserQueries.query.filter(
-                UserQueries.created_at >= cutoff_date
+            recent_queries = UserQuery.query.filter(
+                UserQuery.created_at >= cutoff_date
             ).all()
             
             if not recent_queries:

@@ -1,107 +1,190 @@
 from app import db
 from datetime import datetime
-import json
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, ForeignKey, JSON
+from sqlalchemy.orm import relationship
+
 
 class KnowledgeBase(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(500), nullable=False)
-    content = db.Column(db.Text, nullable=False)
-    source_url = db.Column(db.String(1000))
-    source_type = db.Column(db.String(50))  # 'python_docs', 'stackoverflow', 'github'
-    quality_score = db.Column(db.Float, default=0.0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    """Store all collected knowledge and learning content"""
+    __tablename__ = 'knowledge_base'
     
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'title': self.title,
-            'content': self.content,
-            'source_url': self.source_url,
-            'source_type': self.source_type,
-            'quality_score': self.quality_score,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
-        }
+    id = Column(Integer, primary_key=True)
+    title = Column(String(500), nullable=False)
+    content = Column(Text, nullable=False)
+    source_type = Column(String(100), nullable=False)  # python_docs, stackoverflow, github, etc.
+    source_url = Column(String(1000))
+    language = Column(String(50), default='python')  # python, html, css, javascript, react
+    difficulty = Column(String(20), default='intermediate')  # beginner, intermediate, advanced
+    quality_score = Column(Float, default=0.0)
+    tags = Column(JSON)  # ['functions', 'loops', 'oop']
+    category = Column(String(100))  # syntax, data-structures, web-development, etc.
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_active = Column(Boolean, default=True)
+    
+    # Relationships
+    training_pairs = relationship("TrainingData", back_populates="knowledge_item")
+    user_interactions = relationship("UserQuery", back_populates="related_knowledge")
+
 
 class TrainingData(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    question = db.Column(db.Text, nullable=False)
-    answer = db.Column(db.Text, nullable=False)
-    source = db.Column(db.String(100))
-    quality_score = db.Column(db.Float, default=0.0)
-    used_for_training = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    """Q&A pairs generated from knowledge base for AI training"""
+    __tablename__ = 'training_data'
     
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'question': self.question,
-            'answer': self.answer,
-            'source': self.source,
-            'quality_score': self.quality_score,
-            'used_for_training': self.used_for_training,
-            'created_at': self.created_at.isoformat()
-        }
+    id = Column(Integer, primary_key=True)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, nullable=False)
+    knowledge_base_id = Column(Integer, ForeignKey('knowledge_base.id'))
+    language = Column(String(50), default='python')
+    difficulty = Column(String(20), default='intermediate')
+    question_type = Column(String(100))  # definition, example, debugging, best-practice
+    quality_score = Column(Float, default=0.0)
+    usage_count = Column(Integer, default=0)
+    success_rate = Column(Float, default=0.0)  # How often this leads to good responses
+    created_at = Column(DateTime, default=datetime.utcnow)
+    is_validated = Column(Boolean, default=False)
+    
+    # Relationships
+    knowledge_item = relationship("KnowledgeBase", back_populates="training_pairs")
+
+
+class UserQuery(db.Model):
+    """Store all user interactions and questions"""
+    __tablename__ = 'user_queries'
+    
+    id = Column(Integer, primary_key=True)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, nullable=False)
+    language = Column(String(50), default='python')
+    session_id = Column(String(100))  # Track user sessions
+    response_time = Column(Float)  # Time taken to generate response
+    user_feedback = Column(String(20))  # positive, negative, neutral
+    knowledge_base_id = Column(Integer, ForeignKey('knowledge_base.id'), nullable=True)
+    answer_source = Column(String(100))  # knowledge_base, pattern_match, ai_generated
+    context = Column(JSON)  # Store conversation context
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    related_knowledge = relationship("KnowledgeBase", back_populates="user_interactions")
+
 
 class ModelMetrics(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    model_version = db.Column(db.String(50), nullable=False)
-    accuracy_score = db.Column(db.Float)
-    loss = db.Column(db.Float)
-    training_samples = db.Column(db.Integer)
-    evaluation_date = db.Column(db.DateTime, default=datetime.utcnow)
-    notes = db.Column(db.Text)
+    """Track AI model performance and improvements"""
+    __tablename__ = 'model_metrics'
     
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'model_version': self.model_version,
-            'accuracy_score': self.accuracy_score,
-            'loss': self.loss,
-            'training_samples': self.training_samples,
-            'evaluation_date': self.evaluation_date.isoformat(),
-            'notes': self.notes
-        }
+    id = Column(Integer, primary_key=True)
+    model_version = Column(String(50), nullable=False)
+    language = Column(String(50), default='python')
+    accuracy_score = Column(Float, default=0.0)
+    response_quality = Column(Float, default=0.0)
+    training_data_count = Column(Integer, default=0)
+    knowledge_base_count = Column(Integer, default=0)
+    user_satisfaction = Column(Float, default=0.0)
+    evaluation_date = Column(DateTime, default=datetime.utcnow)
+    metrics_data = Column(JSON)  # Store detailed metrics
+    notes = Column(Text)
+
+
+class ProjectTemplate(db.Model):
+    """Store code templates and project structures"""
+    __tablename__ = 'project_templates'
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String(200), nullable=False)
+    description = Column(Text)
+    language = Column(String(50), nullable=False)  # python, html, css, javascript, react
+    category = Column(String(100))  # web-app, automation, data-analysis, etc.
+    template_code = Column(Text, nullable=False)
+    file_structure = Column(JSON)  # Directory and file structure
+    dependencies = Column(JSON)  # Required packages/libraries
+    instructions = Column(Text)  # Setup and usage instructions
+    difficulty = Column(String(20), default='intermediate')
+    popularity_score = Column(Float, default=0.0)
+    usage_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_featured = Column(Boolean, default=False)
+
+
+class CodeExample(db.Model):
+    """Store specific code examples and snippets"""
+    __tablename__ = 'code_examples'
+    
+    id = Column(Integer, primary_key=True)
+    title = Column(String(300), nullable=False)
+    description = Column(Text)
+    language = Column(String(50), nullable=False)
+    category = Column(String(100))  # functions, classes, algorithms, ui-components
+    code_snippet = Column(Text, nullable=False)
+    explanation = Column(Text)
+    input_example = Column(Text)
+    output_example = Column(Text)
+    related_concepts = Column(JSON)  # ['loops', 'conditionals']
+    difficulty = Column(String(20), default='intermediate')
+    knowledge_base_id = Column(Integer, ForeignKey('knowledge_base.id'), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    is_tested = Column(Boolean, default=False)
+
+
+class LearningPath(db.Model):
+    """Define structured learning paths for different technologies"""
+    __tablename__ = 'learning_paths'
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String(200), nullable=False)
+    description = Column(Text)
+    language = Column(String(50), nullable=False)
+    target_audience = Column(String(100))  # beginner, intermediate, advanced
+    estimated_duration = Column(String(50))  # "2 weeks", "1 month"
+    curriculum = Column(JSON)  # Ordered list of topics and knowledge_base_ids
+    prerequisites = Column(JSON)  # Required knowledge before starting
+    learning_objectives = Column(JSON)  # What students will learn
+    completion_criteria = Column(JSON)  # How to measure completion
+    created_at = Column(DateTime, default=datetime.utcnow)
+    is_active = Column(Boolean, default=True)
+
+
+class UserProgress(db.Model):
+    """Track individual user learning progress"""
+    __tablename__ = 'user_progress'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String(100), nullable=False)  # Session or user identifier
+    learning_path_id = Column(Integer, ForeignKey('learning_paths.id'))
+    current_topic = Column(String(200))
+    completed_topics = Column(JSON)  # List of completed topic IDs
+    quiz_scores = Column(JSON)  # Scores for different topics
+    time_spent = Column(Integer, default=0)  # Minutes spent learning
+    last_activity = Column(DateTime, default=datetime.utcnow)
+    proficiency_level = Column(String(20), default='beginner')
+    achievements = Column(JSON)  # Badges, milestones achieved
+    notes = Column(Text)  # Personal notes or instructor feedback
+
+
+class SystemConfig(db.Model):
+    """Store system configuration and settings"""
+    __tablename__ = 'system_config'
+    
+    id = Column(Integer, primary_key=True)
+    config_key = Column(String(100), unique=True, nullable=False)
+    config_value = Column(JSON, nullable=False)
+    description = Column(Text)
+    category = Column(String(50))  # ai_settings, data_collection, ui_preferences
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 
 class ScrapingLog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    source_type = db.Column(db.String(50), nullable=False)
-    urls_scraped = db.Column(db.Integer, default=0)
-    items_collected = db.Column(db.Integer, default=0)
-    errors_count = db.Column(db.Integer, default=0)
-    started_at = db.Column(db.DateTime, default=datetime.utcnow)
-    completed_at = db.Column(db.DateTime)
-    status = db.Column(db.String(20), default='running')  # 'running', 'completed', 'failed'
-    error_details = db.Column(db.Text)
+    """Log data collection and scraping activities"""
+    __tablename__ = 'scraping_logs'
     
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'source_type': self.source_type,
-            'urls_scraped': self.urls_scraped,
-            'items_collected': self.items_collected,
-            'errors_count': self.errors_count,
-            'started_at': self.started_at.isoformat(),
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
-            'status': self.status,
-            'error_details': self.error_details
-        }
-
-class UserQueries(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    question = db.Column(db.Text, nullable=False)
-    answer = db.Column(db.Text)
-    response_time = db.Column(db.Float)  # in seconds
-    user_rating = db.Column(db.Integer)  # 1-5 rating
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'question': self.question,
-            'answer': self.answer,
-            'response_time': self.response_time,
-            'user_rating': self.user_rating,
-            'created_at': self.created_at.isoformat()
-        }
+    id = Column(Integer, primary_key=True)
+    source = Column(String(100), nullable=False)  # github, stackoverflow, python_docs
+    url = Column(String(1000))
+    status = Column(String(50), nullable=False)  # success, failed, partial
+    items_collected = Column(Integer, default=0)
+    error_message = Column(Text)
+    execution_time = Column(Float)  # Time taken in seconds
+    created_at = Column(DateTime, default=datetime.utcnow)
+    scraping_metadata = Column(JSON)  # Additional scraping metadata
