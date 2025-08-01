@@ -386,18 +386,39 @@ async function generateAIResponse(question) {
         
         console.log('Relevant items found:', relevantItems.length);
         
-        // If we found relevant items, use them to generate a response
+        // If we found relevant items, filter out non-Python content
         if (relevantItems.length > 0) {
-            // Sort by quality score and recency
-            relevantItems.sort((a, b) => {
-                const scoreA = (a.qualityScore || 0) + (new Date(a.createdAt) > new Date(Date.now() - 24*60*60*1000) ? 0.1 : 0);
-                const scoreB = (b.qualityScore || 0) + (new Date(b.createdAt) > new Date(Date.now() - 24*60*60*1000) ? 0.1 : 0);
-                return scoreB - scoreA;
+            // Filter out irrelevant content (like GitHub repo descriptions)
+            const pythonRelevantItems = relevantItems.filter(item => {
+                const title = (item.title || '').toLowerCase();
+                const content = (item.content || '').toLowerCase();
+                
+                // Exclude non-Python educational content
+                if (title.includes('free-programming-books') || 
+                    content.includes('github.com') && content.length > 1000 ||
+                    title.includes('awesome') ||
+                    content.includes('[![')) {
+                    return false;
+                }
+                
+                // Prefer Python-specific educational content
+                return title.includes('python') || 
+                       content.includes('python') ||
+                       item.sourceType === 'python_documentation';
             });
             
-            const bestMatch = relevantItems[0];
-            console.log('Using knowledge base response for:', bestMatch.title);
-            return formatKnowledgeResponse(bestMatch, question);
+            if (pythonRelevantItems.length > 0) {
+                // Sort by quality score and recency
+                pythonRelevantItems.sort((a, b) => {
+                    const scoreA = (a.qualityScore || 0) + (new Date(a.createdAt) > new Date(Date.now() - 24*60*60*1000) ? 0.1 : 0);
+                    const scoreB = (b.qualityScore || 0) + (new Date(b.createdAt) > new Date(Date.now() - 24*60*60*1000) ? 0.1 : 0);
+                    return scoreB - scoreA;
+                });
+                
+                const bestMatch = pythonRelevantItems[0];
+                console.log('Using filtered knowledge base response for:', bestMatch.title);
+                return formatKnowledgeResponse(bestMatch, question);
+            }
         }
         
         // If no specific match, use enhanced pattern response
@@ -537,6 +558,45 @@ Python was created by Guido van Rossum in 1991. He named it after Monty Python's
 Got questions? I'm like Google, but with personality! 😎`
         ];
         return pythonIntros[Math.floor(Math.random() * pythonIntros.length)];
+    }
+
+    // Handle office system development questions
+    if (lowerQuestion.includes('system') && (lowerQuestion.includes('office') || lowerQuestion.includes('work') || lowerQuestion.includes('business'))) {
+        return `**Building Python Systems for Your Office! 💼**
+
+Absolutely! Python is fantastic for office automation and business systems. Here's what we can build:
+
+**Popular Office Systems in Python:**
+• **File Management**: Organize documents, rename files in batches, backup systems
+• **Data Processing**: Excel automation, CSV processing, report generation
+• **Email Automation**: Send bulk emails, process attachments, notifications
+• **Task Scheduling**: Automated reports, data backups, reminder systems
+• **Web Dashboards**: Track KPIs, visualize data, team collaboration tools
+
+**Quick Start Ideas:**
+\`\`\`python
+# Email automation example
+import smtplib
+from email.mime.text import MIMEText
+
+def send_report(recipient, subject, message):
+    # Your email automation code here
+    pass
+
+# Excel processing example
+import pandas as pd
+df = pd.read_excel('office_data.xlsx')
+# Process and analyze your data
+\`\`\`
+
+**What kind of office system are you thinking about?**
+- Inventory management?
+- Employee scheduling?
+- Document processing?
+- Data analysis dashboard?
+- Customer management?
+
+Tell me more about your office needs and I'll help you design the perfect Python solution! 🚀`;
     }
     
     if (lowerQuestion.includes('list')) {
