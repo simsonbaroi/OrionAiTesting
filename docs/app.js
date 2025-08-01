@@ -234,7 +234,7 @@ function handleEnter(event) {
     }
 }
 
-function askQuestion() {
+async function askQuestion() {
     const input = document.getElementById('question-input');
     const question = input.value.trim();
     
@@ -248,18 +248,34 @@ function askQuestion() {
     // Clear input
     input.value = '';
     
-    // Show loading
-    addMessage(messagesDiv, 'Thinking...', 'assistant', true);
+    // Show loading with more realistic timing
+    addMessage(messagesDiv, 'Searching knowledge base...', 'assistant', true);
     
-    // Simulate AI response (in real implementation, this would call your AI API)
-    setTimeout(() => {
+    try {
+        // Generate AI response using knowledge base
+        const startTime = Date.now();
+        const response = await generateAIResponse(question);
+        const responseTime = (Date.now() - startTime) / 1000;
+        
+        // Remove loading message
         removeLoadingMessage(messagesDiv);
-        const response = generateAIResponse(question);
+        
+        // Add AI response
         addMessage(messagesDiv, response, 'assistant');
         
-        // Store in Firebase
-        storeQuery(question, response);
-    }, 1500);
+        // Store in Firebase with response time
+        await storeQuery(question, response, responseTime);
+        
+        // Update stats if on home page
+        if (currentSection === 'home') {
+            updateRealTimeStats();
+        }
+        
+    } catch (error) {
+        console.error('Error generating response:', error);
+        removeLoadingMessage(messagesDiv);
+        addMessage(messagesDiv, 'Sorry, I encountered an error while processing your question. Please try again.', 'assistant');
+    }
 }
 
 function addMessage(container, message, sender, isLoading = false) {
@@ -268,17 +284,62 @@ function addMessage(container, message, sender, isLoading = false) {
     
     const senderClass = sender === 'user' ? 'text-end' : 'text-start';
     const bgClass = sender === 'user' ? 'bg-primary text-white' : 'bg-light';
+    const senderIcon = sender === 'user' ? '👤' : '🤖';
+    
+    // Format message content (convert markdown-style formatting)
+    let formattedMessage = message;
+    if (sender === 'assistant') {
+        // Convert **bold** to <strong>
+        formattedMessage = formattedMessage.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
+        // Convert code blocks ```code``` to styled blocks
+        formattedMessage = formattedMessage.replace(/```(\w+)?\n?([\s\S]*?)```/g, 
+            '<pre class="bg-dark text-light p-2 rounded mt-2 mb-2"><code>$2</code></pre>');
+        
+        // Convert inline code `code` to styled spans
+        formattedMessage = formattedMessage.replace(/`([^`]+)`/g, 
+            '<code class="bg-secondary text-light px-1 rounded">$1</code>');
+        
+        // Convert bullet points
+        formattedMessage = formattedMessage.replace(/^• (.+)$/gm, '<li>$1</li>');
+        formattedMessage = formattedMessage.replace(/(<li>.*<\/li>\s*)+/gs, '<ul class="mt-2 mb-2">$&</ul>');
+        
+        // Convert newlines to line breaks
+        formattedMessage = formattedMessage.replace(/\n/g, '<br>');
+    }
     
     messageDiv.innerHTML = `
         <div class="${senderClass}">
-            <div class="d-inline-block p-2 rounded ${bgClass}" style="max-width: 80%;">
-                ${message}
+            <div class="d-inline-block p-3 rounded ${bgClass}" style="max-width: 85%;">
+                <div class="d-flex align-items-start">
+                    <span class="me-2">${senderIcon}</span>
+                    <div class="flex-grow-1">
+                        ${isLoading ? 
+                            `<div class="d-flex align-items-center">
+                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                ${formattedMessage}
+                            </div>` : 
+                            formattedMessage
+                        }
+                    </div>
+                </div>
+                ${!isLoading && sender === 'assistant' ? 
+                    `<div class="text-muted small mt-2">
+                        <i data-feather="clock" style="width: 12px; height: 12px;"></i>
+                        ${new Date().toLocaleTimeString()}
+                    </div>` : ''
+                }
             </div>
         </div>
     `;
     
     container.appendChild(messageDiv);
     container.scrollTop = container.scrollHeight;
+    
+    // Re-initialize feather icons for any new icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
 }
 
 function removeLoadingMessage(container) {
@@ -288,32 +349,224 @@ function removeLoadingMessage(container) {
     }
 }
 
-function generateAIResponse(question) {
-    // Simple pattern matching for demo purposes
+async function generateAIResponse(question) {
     const lowerQuestion = question.toLowerCase();
     
-    if (lowerQuestion.includes('list')) {
-        return "In Python, you can create a list using square brackets: `my_list = [1, 2, 3, 4]`. Lists are mutable, ordered collections that can contain different data types.";
-    } else if (lowerQuestion.includes('function')) {
-        return "A Python function is defined using the `def` keyword:\n\n```python\ndef my_function(parameter):\n    return parameter * 2\n```\n\nFunctions help organize code and make it reusable.";
-    } else if (lowerQuestion.includes('exception')) {
-        return "Python exception handling uses try-except blocks:\n\n```python\ntry:\n    result = 10 / 0\nexcept ZeroDivisionError:\n    print('Cannot divide by zero!')\n```";
-    } else {
-        return "That's a great Python question! Based on my training data, I'd recommend checking the official Python documentation for detailed information. Feel free to ask more specific questions about Python syntax, data structures, or programming concepts.";
+    try {
+        // First, try to find relevant content from the knowledge base
+        const knowledgeSnapshot = await database.ref('knowledgeBase').once('value');
+        const knowledgeData = knowledgeSnapshot.val() || {};
+        const knowledgeItems = Object.values(knowledgeData);
+        
+        // Search for relevant knowledge base items
+        const relevantItems = knowledgeItems.filter(item => {
+            const title = (item.title || '').toLowerCase();
+            const content = (item.content || '').toLowerCase();
+            
+            // Check for keyword matches
+            const keywords = extractKeywords(lowerQuestion);
+            return keywords.some(keyword => 
+                title.includes(keyword) || content.includes(keyword)
+            );
+        });
+        
+        // If we found relevant items, use them to generate a response
+        if (relevantItems.length > 0) {
+            // Sort by quality score and recency
+            relevantItems.sort((a, b) => {
+                const scoreA = (a.qualityScore || 0) + (new Date(a.createdAt) > new Date(Date.now() - 24*60*60*1000) ? 0.1 : 0);
+                const scoreB = (b.qualityScore || 0) + (new Date(b.createdAt) > new Date(Date.now() - 24*60*60*1000) ? 0.1 : 0);
+                return scoreB - scoreA;
+            });
+            
+            const bestMatch = relevantItems[0];
+            return formatKnowledgeResponse(bestMatch, question);
+        }
+        
+        // If no specific match, try to answer based on question patterns
+        return generatePatternResponse(lowerQuestion);
+        
+    } catch (error) {
+        console.error('Error accessing knowledge base:', error);
+        return generatePatternResponse(lowerQuestion);
     }
 }
 
-function storeQuery(question, answer) {
+function extractKeywords(question) {
+    const commonWords = ['what', 'is', 'are', 'how', 'do', 'does', 'can', 'the', 'a', 'an', 'in', 'on', 'with', 'for', 'to', 'of', 'and', 'or', 'but'];
+    const words = question.toLowerCase().split(/\s+/).filter(word => 
+        word.length > 2 && !commonWords.includes(word)
+    );
+    
+    // Add some synonyms and related terms
+    const expandedKeywords = [...words];
+    
+    if (words.includes('python')) expandedKeywords.push('programming', 'language');
+    if (words.includes('list') || words.includes('lists')) expandedKeywords.push('array', 'sequence', 'collection');
+    if (words.includes('function') || words.includes('functions')) expandedKeywords.push('def', 'method', 'procedure');
+    if (words.includes('class') || words.includes('classes')) expandedKeywords.push('object', 'oop', 'inheritance');
+    if (words.includes('exception') || words.includes('error')) expandedKeywords.push('try', 'except', 'handling');
+    if (words.includes('dictionary') || words.includes('dict')) expandedKeywords.push('mapping', 'key', 'value');
+    if (words.includes('file') || words.includes('files')) expandedKeywords.push('io', 'read', 'write', 'open');
+    
+    return [...new Set(expandedKeywords)];
+}
+
+function formatKnowledgeResponse(knowledgeItem, originalQuestion) {
+    const title = knowledgeItem.title || 'Python Concept';
+    const content = knowledgeItem.content || '';
+    const sourceUrl = knowledgeItem.sourceUrl;
+    
+    let response = `**${title}**\n\n${content}`;
+    
+    // Add source attribution if available
+    if (sourceUrl) {
+        response += `\n\n*Source: ${sourceUrl}*`;
+    }
+    
+    // Add related suggestions
+    response += `\n\nWould you like to know more about any specific aspect of this topic?`;
+    
+    return response;
+}
+
+function generatePatternResponse(lowerQuestion) {
+    if (lowerQuestion.includes('python') && (lowerQuestion.includes('what') || lowerQuestion.includes('define'))) {
+        return `**What is Python?**
+
+Python is a high-level, interpreted programming language known for its simplicity and readability. Here are key characteristics:
+
+• **Easy to Learn**: Clean, readable syntax that emphasizes code readability
+• **Versatile**: Used for web development, data science, AI, automation, and more
+• **Interpreted**: Code is executed line by line without compilation
+• **Dynamic Typing**: Variable types are determined at runtime
+• **Large Community**: Extensive libraries and active developer community
+
+**Key Features:**
+- Object-oriented and functional programming support
+- Automatic memory management
+- Cross-platform compatibility
+- Rich standard library ("batteries included")
+
+**Common Uses:**
+- Web development (Django, Flask)
+- Data analysis (pandas, NumPy)
+- Machine learning (scikit-learn, TensorFlow)
+- Automation and scripting
+- Desktop applications
+
+Would you like to know more about any specific aspect of Python?`;
+    }
+    
+    if (lowerQuestion.includes('list')) {
+        return `**Python Lists**
+
+Lists are ordered, mutable collections in Python:
+
+\`\`\`python
+# Creating lists
+my_list = [1, 2, 3, 4]
+mixed_list = [1, "hello", 3.14, True]
+
+# Common operations
+my_list.append(5)        # Add to end
+my_list.insert(0, 0)     # Insert at position
+my_list.remove(3)        # Remove first occurrence
+item = my_list.pop()     # Remove and return last item
+
+# Accessing elements
+first = my_list[0]       # First element
+last = my_list[-1]       # Last element
+slice = my_list[1:3]     # Slice [start:end]
+\`\`\`
+
+Lists support indexing, slicing, and are perfect for storing sequences of data.`;
+    }
+    
+    if (lowerQuestion.includes('function')) {
+        return `**Python Functions**
+
+Functions are reusable blocks of code defined with the \`def\` keyword:
+
+\`\`\`python
+# Basic function
+def greet(name):
+    return f"Hello, {name}!"
+
+# Function with default parameters
+def power(base, exponent=2):
+    return base ** exponent
+
+# Function with multiple parameters
+def calculate_area(length, width):
+    return length * width
+
+# Using functions
+message = greet("Alice")
+square = power(5)        # Uses default exponent=2
+cube = power(5, 3)       # Custom exponent
+area = calculate_area(10, 5)
+\`\`\`
+
+Functions help organize code, make it reusable, and improve readability.`;
+    }
+    
+    if (lowerQuestion.includes('exception') || lowerQuestion.includes('error')) {
+        return `**Python Exception Handling**
+
+Handle errors gracefully using try-except blocks:
+
+\`\`\`python
+# Basic exception handling
+try:
+    result = 10 / int(input("Enter a number: "))
+    print(f"Result: {result}")
+except ValueError:
+    print("Invalid input! Please enter a number.")
+except ZeroDivisionError:
+    print("Cannot divide by zero!")
+except Exception as e:
+    print(f"An unexpected error occurred: {e}")
+else:
+    print("Operation completed successfully!")
+finally:
+    print("This always executes")
+\`\`\`
+
+Exception handling prevents programs from crashing and provides better user experience.`;
+    }
+    
+    // Default response for unmatched questions
+    return `I understand you're asking about Python programming. While I have knowledge about Python concepts, I'd be happy to help with more specific questions about:
+
+• **Basic concepts**: variables, data types, operators
+• **Data structures**: lists, dictionaries, sets, tuples  
+• **Control flow**: if/else, loops, functions
+• **Object-oriented programming**: classes, inheritance
+• **Error handling**: exceptions, try/except blocks
+• **File operations**: reading/writing files
+• **Advanced topics**: decorators, generators, modules
+
+Could you ask a more specific question about any of these topics?`;
+}
+
+async function storeQuery(question, answer, responseTime = 1.5) {
     const queryData = {
         question: question,
         answer: answer,
         timestamp: Date.now(),
-        responseTime: 1.5
+        responseTime: responseTime,
+        answerLength: answer.length,
+        questionLength: question.length,
+        source: 'knowledge_base_enhanced'
     };
     
-    database.ref('queries').push(queryData).catch((error) => {
-        console.log('Could not store query:', error);
-    });
+    try {
+        await database.ref('queries').push(queryData);
+        console.log('Query stored successfully');
+    } catch (error) {
+        console.error('Could not store query:', error);
+    }
 }
 
 // Database functions
