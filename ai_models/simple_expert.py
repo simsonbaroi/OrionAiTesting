@@ -154,26 +154,46 @@ class SimplePythonExpert:
                     else:
                         return app_result['message']
             
-            # Find the best matching response for regular questions
+            # Check if this is specifically about programming first
+            programming_keywords = ['python', 'javascript', 'html', 'css', 'react', 'code', 'programming', 'function', 'variable', 'loop', 'class', 'import', 'syntax', 'algorithm', 'debug', 'error']
+            is_programming_question = any(keyword in question_lower for keyword in programming_keywords)
+            
             best_match = None
             best_score = 0
             
-            for key, response in self.responses_db.items():
-                # Simple keyword matching
-                if key in question_lower:
-                    score = question_lower.count(key)
-                    if score > best_score:
-                        best_score = score
-                        best_match = response
-            
-            # If no direct match, provide a general help response
-            if not best_match:
-                if any(word in question_lower for word in ['help', 'learn', 'tutorial', 'beginner']):
-                    best_match = self._get_general_help_response()
-                elif any(word in question_lower for word in ['error', 'bug', 'problem', 'fix']):
-                    best_match = self._get_debugging_help()
-                else:
-                    best_match = self._get_default_response(question)
+            # If it's a programming question, use technical responses
+            if is_programming_question:
+                for key, response in self.responses_db.items():
+                    # Skip conversational responses for programming questions
+                    if key in ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 'how are you', 'who are you', 'thank you', 'thanks', 'bye', 'goodbye']:
+                        continue
+                    
+                    if key in question_lower:
+                        score = question_lower.count(key)
+                        if score > best_score:
+                            best_score = score
+                            best_match = response
+                
+                # If no technical match found, provide programming help
+                if not best_match:
+                    if any(word in question_lower for word in ['help', 'learn', 'tutorial', 'beginner']):
+                        best_match = self._get_general_help_response()
+                    elif any(word in question_lower for word in ['error', 'bug', 'problem', 'fix']):
+                        best_match = self._get_debugging_help()
+                    else:
+                        best_match = self._get_programming_response(question)
+            else:
+                # For general conversation, prioritize conversational responses
+                for key, response in self.responses_db.items():
+                    if key in question_lower:
+                        score = question_lower.count(key)
+                        if score > best_score:
+                            best_score = score
+                            best_match = response
+                
+                # If no match, provide general conversational response
+                if not best_match:
+                    best_match = self._get_general_conversational_response(question)
             
             # Store interaction in Firebase if available
             if self.firebase:
@@ -224,13 +244,24 @@ Common error types:
 
 What specific error are you encountering?"""
     
-    def _get_default_response(self, question: str) -> str:
-        """Return a default response when no specific match is found"""
+    def _get_programming_response(self, question: str) -> str:
+        """Return a programming-focused response when no specific match is found"""
         responses = [
-            "That's an interesting Python question! Could you provide more specific details about what you're trying to achieve?",
-            "I'd be happy to help with your Python question. Can you share more context or show me the code you're working with?",
-            "For this Python topic, I recommend checking the official Python documentation or providing more details about your specific use case.",
+            "That's an interesting programming question! Could you provide more specific details about what you're trying to achieve?",
+            "I'd be happy to help with your programming question. Can you share more context or show me the code you're working with?",
+            "For this technical topic, I recommend providing more details about your specific use case. I can help with Python, JavaScript, HTML, CSS, React, and general programming concepts.",
             "This sounds like a great Python learning opportunity! What specific aspect would you like me to explain further?"
+        ]
+        return random.choice(responses)
+    
+    def _get_general_conversational_response(self, question: str) -> str:
+        """Return a general conversational response for non-programming questions"""
+        responses = [
+            "That's an interesting question! I'm here to help with a variety of topics. Is there something specific you'd like to know or discuss?",
+            "I'd be happy to help! Could you provide a bit more context about what you're looking for?",
+            "I'm here to assist you. Feel free to ask me about anything - from general questions to programming and technology topics.",
+            "That's a great question! I can help with general conversations, programming, web development, and creating applications. What would you like to explore?",
+            "I'm not sure I fully understand your question, but I'm here to help! Could you rephrase it or provide more details?",
         ]
         return random.choice(responses)
     
