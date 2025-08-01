@@ -249,7 +249,15 @@ async function askQuestion() {
     input.value = '';
     
     // Show loading with more realistic timing
-    addMessage(messagesDiv, 'Searching knowledge base...', 'assistant', true);
+    const loadingMessages = [
+        'Let me think about that...',
+        'Searching my Python knowledge...',
+        'Consulting my brain cells...',
+        'Thinking hard about this one...',
+        'Processing your question...'
+    ];
+    const randomLoadingMessage = loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+    addMessage(messagesDiv, randomLoadingMessage, 'assistant', true);
     
     try {
         // Generate AI response using knowledge base
@@ -416,71 +424,138 @@ function formatKnowledgeResponse(knowledgeItem, originalQuestion) {
     const title = knowledgeItem.title || 'Python Concept';
     const content = knowledgeItem.content || '';
     const sourceUrl = knowledgeItem.sourceUrl;
+    const difficulty = knowledgeItem.difficulty || 'intermediate';
     
-    let response = `**${title}**\n\n${content}`;
+    // Add personality to the knowledge base response
+    const personalityIntros = [
+        "Great question! Here's what I know about that:",
+        "Ah, you've hit on one of my favorite topics!",
+        "Perfect timing! I just learned about this:",
+        "Ooh, this is a good one! Let me break it down:",
+        "You're asking about something really useful!"
+    ];
+    
+    const personalityOutros = [
+        "Hope that helps! Got any follow-up questions?",
+        "Want to dive deeper into any part of this?",
+        "This is just scratching the surface - what else would you like to know?",
+        "Feel free to ask if you want more details on anything!",
+        "Questions? Comments? Random thoughts? I'm all ears! 👂"
+    ];
+    
+    let response = `${personalityIntros[Math.floor(Math.random() * personalityIntros.length)]}\n\n`;
+    response += `**${title}** `;
+    
+    // Add difficulty emoji
+    if (difficulty === 'beginner') response += '🌱';
+    else if (difficulty === 'intermediate') response += '🌿';
+    else if (difficulty === 'advanced') response += '🌳';
+    
+    response += `\n\n${content}`;
     
     // Add source attribution if available
     if (sourceUrl) {
-        response += `\n\n*Source: ${sourceUrl}*`;
+        response += `\n\n📚 *Learn more: ${sourceUrl}*`;
     }
     
-    // Add related suggestions
-    response += `\n\nWould you like to know more about any specific aspect of this topic?`;
+    // Add encouraging outro
+    response += `\n\n${personalityOutros[Math.floor(Math.random() * personalityOutros.length)]}`;
     
     return response;
 }
 
 function generatePatternResponse(lowerQuestion) {
-    if (lowerQuestion.includes('python') && (lowerQuestion.includes('what') || lowerQuestion.includes('define'))) {
-        return `**What is Python?**
+    // Handle greetings and casual conversation
+    if (lowerQuestion.includes('hi') || lowerQuestion.includes('hello') || lowerQuestion.includes('hey')) {
+        const greetings = [
+            "Hey there! 👋 Ready to dive into some Python magic?",
+            "Hello! I'm your friendly neighborhood Python expert. What's on your mind?",
+            "Hi! I'm here to make Python as fun as a snake in a comedy club. What can I help you with?",
+            "Greetings, fellow coder! Let's turn some caffeine into Python code today!",
+            "Hey! I'm like Stack Overflow, but with better jokes and less judgment. What's up?"
+        ];
+        return greetings[Math.floor(Math.random() * greetings.length)];
+    }
 
-Python is a high-level, interpreted programming language known for its simplicity and readability. Here are key characteristics:
+    if (lowerQuestion.includes('python') && (lowerQuestion.includes('what') || lowerQuestion.includes('define') || lowerQuestion.includes('is'))) {
+        const pythonIntros = [
+            `**What is Python? 🐍**
 
-• **Easy to Learn**: Clean, readable syntax that emphasizes code readability
-• **Versatile**: Used for web development, data science, AI, automation, and more
-• **Interpreted**: Code is executed line by line without compilation
-• **Dynamic Typing**: Variable types are determined at runtime
-• **Large Community**: Extensive libraries and active developer community
+Ah, Python! Not the slithery kind (though both can be equally mesmerizing). Python is like the Swiss Army knife of programming languages - versatile, reliable, and surprisingly elegant.
 
-**Key Features:**
-- Object-oriented and functional programming support
-- Automatic memory management
-- Cross-platform compatibility
-- Rich standard library ("batteries included")
+Here's what makes Python special:
 
-**Common Uses:**
-- Web development (Django, Flask)
-- Data analysis (pandas, NumPy)
-- Machine learning (scikit-learn, TensorFlow)
-- Automation and scripting
-- Desktop applications
+• **Readable as English**: If programming languages had a beauty contest, Python would win for "Most Likely to Be Understood by Your Grandmother"
+• **Batteries Included**: Comes with more built-in tools than a hardware store
+• **Forgiving**: Makes fewer fussy demands than a cat (and that's saying something)
+• **Versatile**: From websites to AI, it's like duct tape for the digital world
 
-Would you like to know more about any specific aspect of Python?`;
+**Fun Facts:**
+- Named after Monty Python (not the snake!) 🎭
+- Powers Instagram, Netflix, and probably your smart toaster
+- Has a philosophy called "The Zen of Python" (yes, really!)
+- Makes other languages jealous with its simplicity
+
+**What can you do with it?**
+- Build websites that don't crash (usually)
+- Teach computers to recognize cats vs dogs
+- Automate boring stuff (like organizing your music library)
+- Create games (Snake game in Python? Meta!)
+
+Want to know something specific? I've got stories for days! 😄`,
+
+            `**Python: The Programming Language That Doesn't Bite! 🐍**
+
+Python is like that friend who's super smart but never makes you feel dumb. It's a programming language that prioritizes being human-readable over being cryptic.
+
+**Why Python Rocks:**
+• **Simple Syntax**: If other languages are Shakespeare, Python is a friendly text message
+• **Huge Community**: More helpful than a small town where everyone knows your name
+• **Libraries Galore**: There's probably a library for making toast (I haven't checked, but probably)
+• **Cross-Platform**: Works on Windows, Mac, Linux, and probably your smart fridge
+
+**Real Talk:**
+Python was created by Guido van Rossum in 1991. He named it after Monty Python's Flying Circus because he wanted programming to be fun. Mission accomplished, Guido! 🎉
+
+**Career Opportunities:**
+- Web Developer (make the internet prettier)
+- Data Scientist (find patterns in chaos)
+- AI Engineer (teach robots to be friendly)
+- Automation Specialist (make computers do your homework)
+
+Got questions? I'm like Google, but with personality! 😎`
+        ];
+        return pythonIntros[Math.floor(Math.random() * pythonIntros.length)];
     }
     
     if (lowerQuestion.includes('list')) {
-        return `**Python Lists**
+        return `**Python Lists: The Swiss Army Knife of Data Structures! 📝**
 
-Lists are ordered, mutable collections in Python:
+Lists are like that junk drawer in your kitchen - they can hold literally anything, and somehow you always find what you need!
 
 \`\`\`python
-# Creating lists
+# Creating lists (easier than making breakfast)
 my_list = [1, 2, 3, 4]
-mixed_list = [1, "hello", 3.14, True]
+mixed_list = [1, "hello", 3.14, True]  # Type? What type? Python doesn't judge!
 
-# Common operations
-my_list.append(5)        # Add to end
-my_list.insert(0, 0)     # Insert at position
-my_list.remove(3)        # Remove first occurrence
-item = my_list.pop()     # Remove and return last item
+# Common operations (list magic tricks)
+my_list.append(5)        # "Hey list, catch!" *throws 5 at the end*
+my_list.insert(0, 0)     # "Excuse me, coming through!" *squeezes in at front*
+my_list.remove(3)        # "You. Out." *removes first 3 it finds*
+item = my_list.pop()     # "I'll take that!" *grabs last item and runs*
 
-# Accessing elements
-first = my_list[0]       # First element
-last = my_list[-1]       # Last element
-slice = my_list[1:3]     # Slice [start:end]
+# Accessing elements (list archaeology)
+first = my_list[0]       # First element (the pioneer)
+last = my_list[-1]       # Last element (negative indexing is like counting backwards)
+slice = my_list[1:3]     # Slice [start:end] - like cutting a sandwich, but digital
 \`\`\`
 
-Lists support indexing, slicing, and are perfect for storing sequences of data.`;
+**Fun List Facts:**
+- Lists remember the order (unlike my brain)
+- You can change them after creation (unlike my past mistakes)
+- They're indexed starting from 0 (because programmers are rebels)
+
+Want to know more list tricks? I've got a whole bag of them! 🎪`;
     }
     
     if (lowerQuestion.includes('function')) {
@@ -536,18 +611,62 @@ finally:
 Exception handling prevents programs from crashing and provides better user experience.`;
     }
     
+    // Handle general conversation and unclear questions
+    if (lowerQuestion.includes('how are you') || lowerQuestion.includes('how do you feel')) {
+        return "I'm doing great! Well, as great as a bunch of code can feel. I've been helping people learn Python all day, which is like my favorite hobby. How are YOU doing? Ready to write some awesome code? 😊";
+    }
+
+    if (lowerQuestion.includes('thank') || lowerQuestion.includes('thanks')) {
+        return "You're absolutely welcome! Making Python less scary and more awesome is what I live for. Got any other questions? I've got all day and unlimited patience! 🎉";
+    }
+
+    if (lowerQuestion.includes('joke') || lowerQuestion.includes('funny')) {
+        const jokes = [
+            "Why do Python programmers prefer snakes over other pets? Because they're already used to dealing with Python! 🐍",
+            "How do you comfort a JavaScript bug? You console it! (But we're here for Python, so... import this! 😄)",
+            "Why don't Python programmers like nature? Too many bugs! 🐛",
+            "What's a Python programmer's favorite breakfast? Spam and eggs! (Monty Python reference - you're welcome! 🥓)"
+        ];
+        return jokes[Math.floor(Math.random() * jokes.length)];
+    }
+
     // Default response for unmatched questions
-    return `I understand you're asking about Python programming. While I have knowledge about Python concepts, I'd be happy to help with more specific questions about:
+    const encouragingResponses = [
+        `Hmm, that's an interesting question! 🤔 I'm pretty good with Python topics, but I might need you to be a bit more specific. Here's what I'm fantastic at:
 
-• **Basic concepts**: variables, data types, operators
-• **Data structures**: lists, dictionaries, sets, tuples  
-• **Control flow**: if/else, loops, functions
-• **Object-oriented programming**: classes, inheritance
-• **Error handling**: exceptions, try/except blocks
-• **File operations**: reading/writing files
-• **Advanced topics**: decorators, generators, modules
+• **Python Basics**: variables, data types, operators (the building blocks!)
+• **Data Structures**: lists, dictionaries, sets, tuples (the cool containers)
+• **Control Flow**: if/else, loops, functions (the logic masters)
+• **OOP**: classes, inheritance (the fancy stuff)
+• **Error Handling**: try/except (because things break, and that's okay!)
+• **File Operations**: reading/writing files (digital paper trails)
+• **Advanced Topics**: decorators, generators, modules (the wizard-level stuff)
 
-Could you ask a more specific question about any of these topics?`;
+What would you like to explore? I promise to make it fun! 🚀`,
+
+        `Great question! Though I'm wondering if you could give me a bit more direction? 🎯 
+
+I'm like a Python encyclopedia with personality - I know tons about:
+
+**The Fun Stuff:**
+- Making your first "Hello, World!" program
+- Understanding why Python is named after comedy
+- Creating programs that actually work (most of the time!)
+
+**The Practical Stuff:**
+- Data structures that don't make your head spin
+- Functions that actually function
+- Debugging without crying
+
+**The Cool Stuff:**
+- Object-oriented programming (fancy!)
+- Web development basics
+- Automation that makes you look like a wizard
+
+What sounds interesting to you? Let's turn curiosity into code! ⚡`
+    ];
+    
+    return encouragingResponses[Math.floor(Math.random() * encouragingResponses.length)];
 }
 
 async function storeQuery(question, answer, responseTime = 1.5) {
