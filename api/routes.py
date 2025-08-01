@@ -65,8 +65,9 @@ def init_routes(app):
             # Load AI model and generate response
             start_time = time.time()
             ai_model = PythonExpertAI()
-            response, model_response_time = ai_model.generate_response(question)
+            response = ai_model.generate_response(question)
             end_time = time.time()
+            model_response_time = end_time - start_time
             
             total_response_time = end_time - start_time
             
