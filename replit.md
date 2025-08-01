@@ -9,6 +9,8 @@ The application scrapes content from Python documentation, GitHub repositories, 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Programming languages to support: HTML, CSS, JavaScript, React, Python
+Application generation: System should be able to create complete apps in these languages when requested.
 
 ## System Architecture
 
