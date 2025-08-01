@@ -77,12 +77,18 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('trigger_collection') }}" class="mb-3">
+                    <form method="POST" action="{{ url_for('trigger_collection') }}" class="mb-3" onsubmit="showProgress()">
                         <button type="submit" class="btn btn-primary w-100" id="trigger-collection-btn">
                             <i data-feather="download" class="me-1"></i>
                             Trigger Data Collection
                         </button>
                         <small class="form-text text-muted">Manually start data collection from web sources</small>
+                        <div id="collection-progress" class="mt-2" style="display: none;">
+                            <div class="progress mb-2">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                            </div>
+                            <small class="text-muted">Collecting data...</small>
+                        </div>
                     </form>
                     
                     <form method="POST" action="{{ url_for('trigger_training') }}" class="mb-3">
@@ -388,28 +394,81 @@
         location.reload();
     }
     
-    // Auto-refresh dashboard every 30 seconds to show progress
+    function showProgress() {
+        const progressDiv = document.getElementById('collection-progress');
+        const button = document.getElementById('trigger-collection-btn');
+        
+        if (progressDiv && button) {
+            progressDiv.style.display = 'block';
+            button.disabled = true;
+            button.innerHTML = '<i data-feather="loader" class="me-1"></i> Collecting...';
+        }
+    }
+    
+    // Auto-refresh dashboard every 15 seconds to show progress
+    let lastKnowledgeCount = parseInt(document.querySelector('.card.bg-primary h3.card-title')?.textContent || '0');
+    
     setInterval(function() {
         // Update statistics without full page reload
         fetch('/api/stats')
             .then(response => response.json())
             .then(data => {
                 if (data.basic_stats) {
-                    // Update the statistics cards
-                    const knowledgeCard = document.querySelector('.card.bg-primary h3.card-title');
-                    if (knowledgeCard) knowledgeCard.textContent = data.basic_stats.knowledge_base || 0;
+                    const currentKnowledgeCount = data.basic_stats.knowledge_base || 0;
                     
-                    const trainingCard = document.querySelector('.card.bg-success h3.card-title');
-                    if (trainingCard) trainingCard.textContent = data.basic_stats.training_data || 0;
+                    // Update the statistics cards with animation if values changed
+                    updateStatCard('.card.bg-primary h3.card-title', currentKnowledgeCount);
+                    updateStatCard('.card.bg-success h3.card-title', data.basic_stats.training_data || 0);
+                    updateStatCard('.card.bg-info h3.card-title', data.basic_stats.user_queries || 0);
+                    updateStatCard('.card.bg-warning h3.card-title', data.basic_stats.unused_training_data || 0);
                     
-                    const queriesCard = document.querySelector('.card.bg-info h3.card-title');
-                    if (queriesCard) queriesCard.textContent = data.basic_stats.user_queries || 0;
-                    
-                    const unusedCard = document.querySelector('.card.bg-warning h3.card-title');
-                    if (unusedCard) unusedCard.textContent = data.basic_stats.unused_training_data || 0;
+                    // Show notification if knowledge base grew
+                    if (currentKnowledgeCount > lastKnowledgeCount) {
+                        showNewDataNotification(currentKnowledgeCount - lastKnowledgeCount);
+                        lastKnowledgeCount = currentKnowledgeCount;
+                    }
                 }
             })
             .catch(error => console.log('Auto-refresh failed:', error));
-    }, 30000);
+    }, 15000);
+    
+    function updateStatCard(selector, newValue) {
+        const card = document.querySelector(selector);
+        if (card && card.textContent != newValue) {
+            card.style.animation = 'pulse 0.5s ease-in-out';
+            card.textContent = newValue;
+            setTimeout(() => card.style.animation = '', 500);
+        }
+    }
+    
+    function showNewDataNotification(newItems) {
+        // Create a temporary notification
+        const notification = document.createElement('div');
+        notification.className = 'alert alert-success alert-dismissible fade show position-fixed';
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+        notification.innerHTML = `
+            <strong>Data Collection Success!</strong> Added ${newItems} new knowledge item${newItems > 1 ? 's' : ''}.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+    
+    // Add pulse animation with CSS
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    `;
+    document.head.appendChild(style);
 </script>
 {% endblock %}
